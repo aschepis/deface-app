@@ -15,7 +15,7 @@ CONDA_RUN := conda run -n $(CONDA_ENV)
 ### TARGETS ###################################################################
 
 .PHONY: help conda-env conda-remove install install-dev build build-macos sign \
-        dist clean shell test lint format check
+        notarize create-dmg dist-macos dist clean shell test lint format check
 
 help:
 	@echo "Conda-based build system for macOS Deface.app"
@@ -30,6 +30,9 @@ help:
 	@echo "  make check           Run tests and linting (fails on any error)"
 	@echo "  make build-macos     Build macOS .app bundle"
 	@echo "  make sign            Sign the .app (use SIGNING_IDENTITY=<id> for real signing)"
+	@echo "  make notarize        Notarize the signed .app (requires APPLE_ID, APPLE_TEAM_ID)"
+	@echo "  make create-dmg      Create DMG from signed .app (use VERSION=x.x.x)"
+	@echo "  make dist-macos      Build, sign, notarize, and create DMG (full release)"
 	@echo "  make dist            Create distributable .zip"
 	@echo "  make shell           Enter the conda env shell"
 	@echo "  make clean           Remove build output"
@@ -38,6 +41,8 @@ help:
 	@echo "Examples:"
 	@echo "  make sign                                    # Ad-hoc signing (for local testing)"
 	@echo "  make sign SIGNING_IDENTITY='Developer ID'   # Sign with Apple Developer ID"
+	@echo "  make create-dmg VERSION=1.2.3                # Create DMG with version number"
+	@echo "  make dist-macos VERSION=1.2.3 SIGNING_IDENTITY='Developer ID' # Full release"
 
 ### ENVIRONMENT MANAGEMENT ####################################################
 
@@ -103,7 +108,39 @@ sign:
 	codesign --force --deep --sign "$(SIGNING_IDENTITY)" $(DIST_APP)
 	@echo "✓ Signing complete!"
 
+notarize:
+	@echo "→ Notarizing $(DIST_APP)..."
+	@if [ -z "$(APPLE_ID)" ] || [ -z "$(APPLE_TEAM_ID)" ]; then \
+		echo "Error: APPLE_ID and APPLE_TEAM_ID environment variables must be set"; \
+		exit 1; \
+	fi
+	ditto -c -k --keepParent $(DIST_APP) $(DIST_APP).zip
+	xcrun notarytool submit $(DIST_APP).zip \
+		--apple-id "$(APPLE_ID)" \
+		--team-id "$(APPLE_TEAM_ID)" \
+		--password "$(APPLE_APP_SPECIFIC_PASSWORD)" \
+		--wait
+	xcrun stapler staple $(DIST_APP)
+	rm $(DIST_APP).zip
+	@echo "✓ Notarization complete!"
+
 ### PACKAGING #################################################################
+
+create-dmg:
+	@echo "→ Creating DMG..."
+	@if [ -z "$(VERSION)" ]; then \
+		VERSION="1.0.0"; \
+		echo "Warning: VERSION not set, using default: $$VERSION"; \
+	fi
+	mkdir -p dist-packages
+	hdiutil create -volname "$(APP)" \
+		-srcfolder $(DIST_APP) \
+		-ov -format UDZO \
+		"dist-packages/$(APP)-$${VERSION}-macOS.dmg"
+	@echo "✓ DMG created: dist-packages/$(APP)-$${VERSION}-macOS.dmg"
+
+dist-macos: build-macos sign notarize create-dmg
+	@echo "✓ Complete macOS distribution package created!"
 
 dist:
 	mkdir -p dist-packages

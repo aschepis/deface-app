@@ -1,24 +1,30 @@
+#define MyAppVersion GetEnv("APP_VERSION")
+#if MyAppVersion == ""
+  #define MyAppVersion "1.0.0"
+#endif
+
 [Setup]
 AppName=Deface
-AppVersion=1.0.0
+AppVersion={#MyAppVersion}
 AppPublisher=Deface App Contributors
 AppPublisherURL=https://github.com/aschepis/deface-app
 AppSupportURL=https://github.com/aschepis/deface-app/issues
 AppUpdatesURL=https://github.com/aschepis/deface-app/releases
-DefaultDirName={pf}\Deface
+DefaultDirName={autopf}\Deface
 DefaultGroupName=Deface
+OutputDir=Output
 OutputBaseFilename=DefaceInstaller
 Compression=lzma
 SolidCompression=yes
 LicenseFile=LICENSE
 InfoBeforeFile=
 InfoAfterFile=
-VersionInfoVersion=1.0.0.0
+VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany=Deface App Contributors
 VersionInfoDescription=GUI application for blurring faces in images and videos
 VersionInfoCopyright=Copyright (C) 2025
 VersionInfoProductName=Deface
-VersionInfoProductVersion=1.0.0
+VersionInfoProductVersion={#MyAppVersion}
 
 [Files]
 Source: "dist\Deface\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
