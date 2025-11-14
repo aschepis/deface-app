@@ -1,23 +1,17 @@
-#define MyAppVersion GetEnv("APP_VERSION")
-// If the version is empty, use a default
-#if MyAppVersion == ""
-  #define MyAppVersion "1.0.0"
+// Get version from preprocessor variable (set via /DAPP_VERSION=value) or environment variable
+#ifndef APP_VERSION
+  #define MyAppVersion GetEnv("APP_VERSION")
+  #if MyAppVersion == ""
+    #define MyAppVersion "1.0.0"
+  #endif
+#else
+  #define MyAppVersion APP_VERSION
 #endif
 
-// Helper to get a valid VersionInfoVersion (must be X.X.X.X)
-#define MyAppVersionInfoVersion StrReplace("{#MyAppVersion}", ".", ".", 3)
-#if (Pos(".", "{#MyAppVersion}") = 0)
-  #define MyAppVersionInfoVersion "{#MyAppVersion}.0.0.0"
-#elif (GetStringLength("{#MyAppVersion}") - GetStringLength(StrReplace("{#MyAppVersion}", ".", "")) = 1)
-  #define MyAppVersionInfoVersion "{#MyAppVersion}.0.0"
-#elif (GetStringLength("{#MyAppVersion}") - GetStringLength(StrReplace("{#MyAppVersion}", ".", "")) = 2)
-  #define MyAppVersionInfoVersion "{#MyAppVersion}.0"
-#else
-  #define MyAppVersionInfoVersion "{#MyAppVersion}"
-#endif
-#if MyAppVersion == ""
-  #define MyAppVersion "1.0.0"
-#endif
+// VersionInfoVersion requires exactly 4 numeric components (X.X.X.X)
+// Standard semantic versions are X.Y.Z (3 components), so append .0
+// This converts "1.0.0" to "1.0.0.0" for Windows version info
+#define MyAppVersionInfoVersion MyAppVersion + ".0"
 
 [Setup]
 AppName=Deface
@@ -35,7 +29,7 @@ SolidCompression=yes
 LicenseFile=LICENSE
 InfoBeforeFile=
 InfoAfterFile=
-VersionInfoVersion={#MyAppVersion}.0
+VersionInfoVersion={#MyAppVersionInfoVersion}
 VersionInfoCompany=Deface App Contributors
 VersionInfoDescription=GUI application for blurring faces in images and videos
 VersionInfoCopyright=Copyright (C) 2025

@@ -188,13 +188,12 @@ jobs:
           choco install innosetup -y
 
       - name: Create Windows installer
-        shell: bash
+        shell: pwsh
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          # Update version in Inno Setup script
-          export APP_VERSION="$VERSION"
-          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" build_win_installer.iss
+          # Pass version to Inno Setup via /D parameter (more reliable than environment variables)
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAPP_VERSION="$env:VERSION" build_win_installer.iss
 
       - name: Rename installer
         shell: bash
