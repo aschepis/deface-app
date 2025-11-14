@@ -130,6 +130,27 @@ def run_deface(
         raise
 
 
+def get_resource_path(relative_path: str) -> str:
+    """Get the absolute path to a resource file.
+
+    Works both in development and when bundled with PyInstaller.
+
+    Args:
+        relative_path: Relative path to the resource file.
+
+    Returns:
+        Absolute path to the resource file.
+    """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        # Running in development mode
+        base_path = Path(__file__).parent.absolute()
+    
+    return str(Path(base_path) / relative_path)
+
+
 def get_desktop_path() -> str:
     """Get the user's Desktop folder path.
 
@@ -520,6 +541,29 @@ class DefaceApp(ctk.CTk):
 
         self.title(f"Deface — Simple v{__version__}")
         self.geometry("900x700")
+
+        # Set application icon
+        self.icon_image = None  # Keep reference to prevent garbage collection
+        try:
+            # Try icon.ico first (better for Windows), then fall back to icon.png
+            icon_ico_path = get_resource_path("icon.ico")
+            icon_png_path = get_resource_path("icon.png")
+            
+            if Path(icon_ico_path).exists():
+                # Use iconbitmap for .ico files (works on Windows)
+                try:
+                    self.iconbitmap(icon_ico_path)
+                except Exception:
+                    # If iconbitmap fails (e.g., on non-Windows), fall back to PNG
+                    if Path(icon_png_path).exists():
+                        self.icon_image = tk.PhotoImage(file=icon_png_path)
+                        self.iconphoto(False, self.icon_image)
+            elif Path(icon_png_path).exists():
+                # Use iconphoto for PNG files (works cross-platform)
+                self.icon_image = tk.PhotoImage(file=icon_png_path)
+                self.iconphoto(False, self.icon_image)
+        except Exception as e:
+            logger.warning(f"Could not load application icon: {e}")
 
         # Process tracking
         self.proc: Optional[subprocess.Popen] = None
@@ -930,7 +974,6 @@ class DefaceApp(ctk.CTk):
 
 
 def main() -> None:
-    """Main application entry point."""
     app = DefaceApp()
     try:
         app.mainloop()
@@ -946,5 +989,5 @@ def main() -> None:
         logger.info("Application closed")
 
 
-if __name__ == "__main__":
+if __name__ in ("__main__", "__mp_main__"):
     main()

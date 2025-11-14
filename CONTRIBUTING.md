@@ -5,12 +5,14 @@ Thank you for your interest in contributing to deface-app! This document provide
 ## Development Setup
 
 1. Fork the repository and clone your fork:
+
    ```bash
    git clone https://github.com/your-username/deface-app.git
    cd deface-app
    ```
 
 2. Create a virtual environment:
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -27,28 +29,33 @@ Thank you for your interest in contributing to deface-app! This document provide
 ## Development Workflow
 
 1. Create a new branch for your changes:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. Make your changes and ensure they follow the code style:
+
    ```bash
    make format  # Auto-format code
    make lint    # Check for issues
    ```
 
 3. Write or update tests for your changes:
+
    ```bash
    make test
    ```
 
 4. Ensure all tests pass and code quality checks pass:
+
    ```bash
    make lint
    make test
    ```
 
 5. Commit your changes with a clear commit message:
+
    ```bash
    git commit -m "Add feature: description of changes"
    ```
@@ -85,6 +92,7 @@ Run `make format` to auto-format your code before committing.
 ## Reporting Issues
 
 When reporting issues, please include:
+
 - Operating system and version
 - Python version
 - Steps to reproduce the issue
@@ -95,4 +103,3 @@ When reporting issues, please include:
 ## Questions?
 
 Feel free to open an issue for questions or discussions about the project.
-

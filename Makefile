@@ -1,112 +1,77 @@
-.PHONY: help install install-dev test lint format clean build build-windows build-macos build-linux dist installer-windows
+### CONFIG ####################################################################
 
-# Default Python interpreter
-PYTHON := python3
-PY := $(PYTHON)
+CONDA_ENV := deface-build
+CONDA_PY := 3.12
+APP := Deface
+SPEC := deface.spec
+DIST_APP := dist/$(APP).app
 
-# Detect OS
-UNAME_S := $(shell uname -s 2>/dev/null || echo "Linux")
-ifeq ($(UNAME_S),Linux)
-    PLATFORM := linux
-endif
-ifeq ($(UNAME_S),Darwin)
-    PLATFORM := macos
-endif
-ifeq ($(OS),Windows_NT)
-    PLATFORM := windows
-endif
+### INTERNAL ##################################################################
 
-help: ## Show this help message
+# Helper to run commands inside the conda environment
+CONDA_RUN := conda run -n $(CONDA_ENV)
+
+### TARGETS ###################################################################
+
+.PHONY: help conda-env conda-remove install install-dev build build-macos sign \
+        dist clean shell
+
+help:
+	@echo "Conda-based build system for macOS Deface.app"
+	@echo ""
 	@echo "Available targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo "  make conda-env       Create the conda environment"
+	@echo "  make install         Install runtime dependencies"
+	@echo "  make install-dev     Install dev dependencies + pyinstaller"
+	@echo "  make build-macos     Build macOS .app bundle"
+	@echo "  make sign            Ad-hoc sign the .app"
+	@echo "  make dist            Create distributable .zip"
+	@echo "  make shell           Enter the conda env shell"
+	@echo "  make clean           Remove build output"
+	@echo "  make conda-remove    Remove the conda env entirely"
 
-install: ## Install production dependencies
-	$(PY) -m pip install --upgrade pip
-	$(PY) -m pip install -r requirements.txt
+### ENVIRONMENT MANAGEMENT ####################################################
 
-install-dev: ## Install development dependencies
-	$(PY) -m pip install --upgrade pip
-	$(PY) -m pip install -r requirements-dev.txt
-	$(PY) -m pip install -e .
+conda-env:
+	conda create -y -n $(CONDA_ENV) python=$(CONDA_PY)
 
-test: ## Run tests with coverage
-	$(PY) -m pytest tests/ -v
+conda-remove:
+	conda remove -y --name $(CONDA_ENV) --all
 
-test-coverage: test ## Run tests and show coverage report
-	@echo "Coverage report generated in htmlcov/index.html"
+shell:
+	conda run -n $(CONDA_ENV) bash
 
-lint: ## Run all linting checks
-	@echo "Running flake8..."
-	$(PY) -m flake8 gui_run_deface.py tests/
-	@echo "Running black check..."
-	$(PY) -m black --check gui_run_deface.py tests/
-	@echo "Running isort check..."
-	$(PY) -m isort --check-only gui_run_deface.py tests/
-	@echo "Running mypy..."
-	$(PY) -m mypy gui_run_deface.py || true
+### INSTALLATION ##############################################################
 
-format: ## Auto-format code with black and isort
-	$(PY) -m black gui_run_deface.py tests/
-	$(PY) -m isort gui_run_deface.py tests/
-	@echo "Code formatted successfully"
+install:
+	$(CONDA_RUN) pip install --upgrade pip
+	$(CONDA_RUN) pip install -r requirements.txt
 
-clean: ## Remove build artifacts
-	rm -rf build/
-	rm -rf dist/
-	rm -rf *.egg-info
-	rm -rf .pytest_cache
-	rm -rf .mypy_cache
-	rm -rf htmlcov/
-	rm -rf .coverage
-	rm -rf *.spec.bak
-	rm -rf Output/
-	find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+install-dev: install
+	$(CONDA_RUN) pip install -r requirements-dev.txt
+	$(CONDA_RUN) pip install pyinstaller
 
-build: ## Build executable for current platform
-	@echo "Building for $(PLATFORM)..."
-	$(PY) -m PyInstaller pyinstaller.spec --clean
+### BUILDING ##################################################################
 
-build-windows: ## Build Windows executable
-	@echo "Building Windows executable..."
-	$(PY) -m PyInstaller pyinstaller.spec --clean --noconfirm
+build: build-macos
 
-build-macos: ## Build macOS app bundle
-	@echo "Building macOS app bundle..."
-	$(PY) -m PyInstaller pyinstaller.spec --clean --noconfirm
-	@echo "Note: To create .app bundle, you may need to modify pyinstaller.spec"
+build-macos:
+	$(CONDA_RUN) python -m PyInstaller $(SPEC)
 
-build-linux: ## Build Linux executable
-	@echo "Building Linux executable..."
-	$(PY) -m PyInstaller pyinstaller.spec --clean --noconfirm
+### SIGNING ###################################################################
 
-dist: build ## Create distribution packages
-	@echo "Creating distribution packages..."
-	@mkdir -p dist-packages
-ifeq ($(PLATFORM),macos)
-	@echo "Creating macOS distribution..."
-	cd dist && zip -r ../dist-packages/Deface-macos.zip Deface.app 2>/dev/null || zip -r ../dist-packages/Deface-macos.zip Deface
-endif
-ifeq ($(PLATFORM),linux)
-	@echo "Creating Linux distribution..."
-	cd dist && tar -czf ../dist-packages/Deface-linux.tar.gz Deface
-endif
-ifeq ($(PLATFORM),windows)
-	@echo "Windows distribution should be created with installer-windows target"
-endif
-	@echo "Distribution packages created in dist-packages/"
+sign:
+	codesign --force --deep --sign - $(DIST_APP)
 
-installer-windows: build-windows ## Build Windows installer (requires Inno Setup)
-	@echo "Building Windows installer..."
-	@if command -v iscc >/dev/null 2>&1; then \
-		iscc build_win_installer.iss; \
-	else \
-		echo "Error: Inno Setup Compiler (iscc) not found in PATH"; \
-		echo "Please install Inno Setup from https://jrsoftware.org/isinfo.php"; \
-		exit 1; \
-	fi
+### PACKAGING #################################################################
 
-check: lint test ## Run all checks (lint + test)
+dist:
+	mkdir -p dist-packages
+	cd dist && zip -r ../dist-packages/$(APP)-macos.zip $(APP).app
+	@echo "→ Distribution package: dist-packages/$(APP)-macos.zip"
 
-ci: install-dev lint test ## Run CI pipeline locally
+### CLEANUP ###################################################################
 
+clean:
+	rm -rf build dist __pycache__ *.egg-info
+	find . -name "__pycache__" -exec rm -rf {} +

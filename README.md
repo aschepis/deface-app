@@ -155,35 +155,59 @@ Auto-format code:
 make format
 ```
 
-### Building Distributions
+## Building & Signing the macOS Application
 
-#### Windows Installer
+This project uses a **Conda-based build environment** to produce a fully standalone, code-signable macOS `.app` bundle. To build and sign the application:
 
-1. Build the executable:
+### **1. Create the Conda build environment**
 
-   ```bash
-   make build-windows
-   ```
+```sh
+make conda-env
+```
 
-2. Build the installer (requires [Inno Setup](https://jrsoftware.org/isinfo.php)):
-   ```bash
-   make installer-windows
-   ```
+### **2. Install dependencies (runtime + dev + PyInstaller)**
 
-#### macOS App Bundle
+```sh
+make install-dev
+```
 
-1. Build the app:
+### **3. Build the macOS `.app` bundle**
 
-   ```bash
-   make build-macos
-   ```
+```sh
+make build-macos
+```
 
-2. (Optional) Code sign and notarize:
-   ```bash
-   codesign --deep --force --verify --timestamp --sign "Developer ID Application: YOUR NAME (TEAMID)" dist/Deface
-   xcrun notarytool submit dist/Deface --key /path/to/key.p8 --key-id KEYID --issuer TEAMID --wait
-   xcrun stapler staple dist/Deface
-   ```
+The built application will appear at:
+
+```
+dist/Deface.app
+```
+
+### **4. Ad-hoc sign the app (for local use/testing)**
+
+```sh
+make sign
+```
+
+### **5. Package a distributable ZIP**
+
+```sh
+make dist
+```
+
+Output will be placed in:
+
+```
+dist-packages/Deface-macos.zip
+```
+
+### **6. Optional: Developer ID signing**
+
+```sh
+codesign --force --deep --options runtime \
+  --sign "Developer ID Application: Your Name (TEAMID)" \
+  dist/Deface.app
+```
 
 ## Contributing
 
@@ -221,7 +245,6 @@ Or reinstall Python with tkinter support.
 ## Support
 
 - **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/aschepis/deface-app/issues)
-- **Questions**: Open a discussion on [GitHub Discussions](https://github.com/aschepis/deface-app/discussions)
 
 ## Changelog
 
