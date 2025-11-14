@@ -3,21 +3,21 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.0)'
+        description: "Version number (e.g., 1.0.0)"
         required: true
         type: string
 
 jobs:
   build-macos:
     runs-on: macos-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set version
         id: version
         run: |
@@ -26,7 +26,7 @@ jobs:
           else
             echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -34,48 +34,54 @@ jobs:
           python-version: 3.12
           miniforge-version: latest
           activate-environment: deface-build
-      
+
       - name: Install dependencies
         shell: bash -el {0}
         run: |
           make install-dev
-      
+
       - name: Build macOS app
         shell: bash -el {0}
         run: |
           make build-macos
-      
+
       - name: Import Apple certificates
-        if: ${{ secrets.APPLE_CERTIFICATE_BASE64 != '' }}
         env:
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
-          # Create temporary keychain
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
-          
-          # Create and unlock keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          
-          # Import certificate
-          CERT_PATH=$RUNNER_TEMP/certificate.p12
-          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
-          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          
-          # Set as default keychain
-          security list-keychains -d user -s "$KEYCHAIN_PATH"
-          security default-keychain -s "$KEYCHAIN_PATH"
-          
-          # Clean up certificate file
-          rm "$CERT_PATH"
-          
-          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
-          echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
-      
+          # Only import certificates if they are provided
+          if [ -n "$APPLE_CERTIFICATE_BASE64" ]; then
+            echo "Importing Apple Developer certificate..."
+            
+            # Create temporary keychain
+            KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+            KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+            
+            # Create and unlock keychain
+            security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            
+            # Import certificate
+            CERT_PATH=$RUNNER_TEMP/certificate.p12
+            echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+            security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            
+            # Set as default keychain
+            security list-keychains -d user -s "$KEYCHAIN_PATH"
+            security default-keychain -s "$KEYCHAIN_PATH"
+            
+            # Clean up certificate file
+            rm "$CERT_PATH"
+            
+            echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+            echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
+          else
+            echo "No certificate provided, will use ad-hoc signing"
+          fi
+
       - name: Sign macOS app
         shell: bash -el {0}
         env:
@@ -87,31 +93,37 @@ jobs:
             echo "Using Developer ID: $SIGNING_IDENTITY"
           fi
           make sign SIGNING_IDENTITY="$SIGNING_IDENTITY"
-      
+
       - name: Notarize macOS app
-        if: ${{ secrets.APPLE_ID != '' && secrets.APPLE_TEAM_ID != '' }}
         shell: bash -el {0}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
-          make notarize
-      
+          # Only notarize if credentials are provided
+          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
+            echo "Notarizing app with Apple..."
+            make notarize
+          else
+            echo "Skipping notarization - Apple credentials not configured"
+            echo "Set APPLE_ID, APPLE_TEAM_ID, and APPLE_APP_SPECIFIC_PASSWORD secrets to enable notarization"
+          fi
+
       - name: Create DMG
         shell: bash -el {0}
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           make create-dmg VERSION="$VERSION"
-      
+
       - name: Clean up keychain
         if: always()
         run: |
           if [ -n "$KEYCHAIN_PATH" ]; then
             security delete-keychain "$KEYCHAIN_PATH" || true
           fi
-      
+
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
@@ -121,10 +133,10 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set version
         id: version
         shell: bash
@@ -134,7 +146,7 @@ jobs:
           else
             echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -142,23 +154,23 @@ jobs:
           python-version: 3.12
           miniforge-version: latest
           activate-environment: deface-build
-      
+
       - name: Install dependencies
         shell: bash -el {0}
         run: |
           conda run -n deface-build pip install --upgrade pip
           conda run -n deface-build pip install -r requirements.txt
           conda run -n deface-build pip install pyinstaller
-      
+
       - name: Build Windows executable
         shell: bash -el {0}
         run: |
           conda run -n deface-build python -m PyInstaller deface.spec --clean --noconfirm
-      
+
       - name: Install Inno Setup
         run: |
           choco install innosetup -y
-      
+
       - name: Create Windows installer
         shell: bash
         env:
@@ -167,7 +179,7 @@ jobs:
           # Update version in Inno Setup script
           export APP_VERSION="$VERSION"
           "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" build_win_installer.iss
-      
+
       - name: Rename installer
         shell: bash
         env:
@@ -175,7 +187,7 @@ jobs:
         run: |
           mkdir -p dist-packages
           mv Output/DefaceInstaller.exe "dist-packages/Deface-${VERSION}-Windows-Setup.exe"
-      
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
@@ -185,10 +197,10 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set version
         id: version
         run: |
@@ -197,7 +209,7 @@ jobs:
           else
             echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -205,19 +217,19 @@ jobs:
           python-version: 3.12
           miniforge-version: latest
           activate-environment: deface-build
-      
+
       - name: Install dependencies
         shell: bash -el {0}
         run: |
           conda run -n deface-build pip install --upgrade pip
           conda run -n deface-build pip install -r requirements.txt
           conda run -n deface-build pip install pyinstaller
-      
+
       - name: Build Linux executable
         shell: bash -el {0}
         run: |
           conda run -n deface-build python -m PyInstaller deface.spec --clean --noconfirm
-      
+
       - name: Create tarball
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -225,7 +237,7 @@ jobs:
           mkdir -p dist-packages
           cd dist
           tar -czf "../dist-packages/Deface-${VERSION}-Linux-x86_64.tar.gz" Deface/
-      
+
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
@@ -238,10 +250,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set version
         id: version
         run: |
@@ -252,16 +264,16 @@ jobs:
             echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
             echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
+
       - name: Display artifact structure
         run: |
           ls -R artifacts/
-      
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -276,4 +288,3 @@ jobs:
             artifacts/Deface-Linux/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
