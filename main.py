@@ -17,6 +17,7 @@ from tkinter import filedialog, messagebox
 from typing import Any, Dict, Optional, Tuple
 
 from progress_parser import ProgressParser
+from config_manager import load_config, save_config, get_default_config
 
 try:
     import customtkinter as ctk
@@ -247,6 +248,86 @@ def validate_paths(input_path: str, output_dir: str) -> Tuple[bool, Optional[str
         return False, f"Output path is not a directory: {output_dir}"
 
     return True, None
+
+
+class LogDialog(ctk.CTkToplevel):
+    """Dialog for displaying error logs."""
+
+    def __init__(self, parent, filename: str, log_text: str):
+        super().__init__(parent)
+
+        self.title(f"Error Logs - {filename}")
+        self.geometry("800x600")
+        self.resizable(True, True)
+
+        # Make dialog modal
+        self.transient(parent)
+        self.grab_set()
+
+        # Create widgets
+        self._create_widgets(log_text)
+
+        # Center dialog on parent
+        self._center_on_parent()
+
+        # Focus on dialog
+        self.focus()
+
+    def _center_on_parent(self):
+        """Center the dialog on its parent window."""
+        self.update_idletasks()
+
+        parent_x = self.master.winfo_x()
+        parent_y = self.master.winfo_y()
+        parent_width = self.master.winfo_width()
+        parent_height = self.master.winfo_height()
+
+        dialog_width = self.winfo_width()
+        dialog_height = self.winfo_height()
+
+        x = parent_x + (parent_width // 2) - (dialog_width // 2)
+        y = parent_y + (parent_height // 2) - (dialog_height // 2)
+
+        self.geometry(f"+{x}+{y}")
+
+    def _create_widgets(self, log_text: str):
+        """Create and layout all dialog widgets."""
+        # Main container
+        main_frame = ctk.CTkFrame(self)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Title
+        title_label = ctk.CTkLabel(
+            main_frame,
+            text="Error Logs",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        )
+        title_label.pack(pady=(0, 10))
+
+        # Textbox for logs
+        log_textbox = ctk.CTkTextbox(
+            main_frame,
+            font=("Courier", 11),
+            wrap="word",
+        )
+        log_textbox.pack(fill="both", expand=True, pady=(0, 10))
+        log_textbox.insert("1.0", log_text)
+        log_textbox.configure(state="disabled")  # Make read-only
+
+        # Close button
+        button_frame = ctk.CTkFrame(main_frame)
+        button_frame.pack(fill="x")
+
+        close_btn = ctk.CTkButton(
+            button_frame,
+            text="Close",
+            command=self.destroy,
+            width=100,
+        )
+        close_btn.pack(side="right", padx=10)
+
+        # Bind Escape key to close
+        self.bind("<Escape>", lambda e: self.destroy())
 
 
 class ConfigDialog(ctk.CTkToplevel):
@@ -673,17 +754,16 @@ class DefaceApp(DefaceAppBase):
         self.file_widgets: dict = {}  # Maps file path to UI widgets
         self.active_processes: dict = {}  # Maps file path to subprocess.Popen
 
+        # Load configuration from disk
+        saved_config = load_config()
+        default_config = get_default_config()
+        
         # Configuration (defaults match deface defaults, with keep-audio and keep-metadata True)
-        self.config: Dict = {
-            "thresh": 0.2,
-            "scale": None,
-            "boxes": False,
-            "mask_scale": 1.3,
-            "replacewith": "blur",
-            "keep_audio": True,
-            "keep_metadata": True,
-            "batch_size": 1,  # Number of files to process concurrently
-        }
+        # Load deface config from saved config or use defaults
+        self.config: Dict = saved_config.get("deface_config", default_config["deface_config"]).copy()
+        
+        # Store saved output directory for use in _create_widgets
+        self.saved_output_directory = saved_config.get("output_directory")
 
         # Create UI elements
         self._create_widgets()
@@ -703,7 +783,7 @@ class DefaceApp(DefaceAppBase):
         # Title
         title_label = ctk.CTkLabel(
             main_frame,
-            text="Face Blurring Tool - Batch Processing",
+            text="Deface",
             font=ctk.CTkFont(size=24, weight="bold"),
         )
         title_label.pack(pady=(0, 20))
@@ -719,13 +799,19 @@ class DefaceApp(DefaceAppBase):
         output_row = ctk.CTkFrame(output_frame)
         output_row.pack(fill="x", padx=10, pady=(0, 10))
 
-        # Set default output folder to Desktop
-        default_output = get_desktop_path()
+        # Set default output folder from saved config or Desktop
+        if self.saved_output_directory and Path(self.saved_output_directory).exists():
+            default_output = self.saved_output_directory
+        else:
+            default_output = get_desktop_path()
         self.output_entry = ctk.CTkEntry(
             output_row, placeholder_text="Select output folder..."
         )
         self.output_entry.insert(0, default_output)
         self.output_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        # Bind to save config when output directory changes
+        self.output_entry.bind("<FocusOut>", self._on_output_directory_changed)
 
         output_browse_btn = ctk.CTkButton(
             output_row, text="Browse", command=self._browse_output_folder, width=100
@@ -768,13 +854,6 @@ class DefaceApp(DefaceAppBase):
             text_color="gray",
         )
         self.no_files_label.pack(pady=50)
-
-        # Log display (hidden by default, shown when there are failures)
-        self.log_frame = ctk.CTkFrame(main_frame)
-        self.log_label = ctk.CTkLabel(
-            self.log_frame, text="Error Logs:", font=ctk.CTkFont(size=14)
-        )
-        self.log_textbox = ctk.CTkTextbox(self.log_frame, font=("Courier", 11), wrap="word", height=150)
 
         # Buttons
         self.button_frame = ctk.CTkFrame(main_frame)
@@ -1255,7 +1334,7 @@ class DefaceApp(DefaceAppBase):
             messagebox.showerror("Drop Error", f"Error processing dropped files: {str(e)}")
     
     def _show_file_logs(self, file_path: str):
-        """Show error logs for a specific file.
+        """Show error logs for a specific file in a separate dialog.
         
         Args:
             file_path: Path to the file whose logs should be displayed.
@@ -1271,20 +1350,29 @@ class DefaceApp(DefaceAppBase):
             messagebox.showinfo("No Logs", "No error logs available for this file.")
             return
         
-        # Show log frame if hidden
-        if not self.log_frame.winfo_ismapped():
-            self.log_label.pack(anchor="w", padx=10, pady=(10, 5))
-            self.log_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-            # Pack before the button frame
-            self.log_frame.pack(fill="x", pady=10, before=self.button_frame)
-        
-        # Display the error log
+        # Display the error log in a separate dialog
         filename = os.path.basename(file_path)
         log_text = f"=== Error log for {filename} ===\n\n{file_info['error_log']}\n\n"
-        self.log_textbox.delete("1.0", tk.END)
-        self.log_textbox.insert("1.0", log_text)
-        self.log_textbox.see("1.0")
+        
+        dialog = LogDialog(self, filename, log_text)
+        self.wait_window(dialog)
 
+    def _save_config(self):
+        """Save current configuration to disk."""
+        config_to_save = {
+            "deface_config": self.config,
+            "output_directory": self.output_entry.get().strip() or None,
+        }
+        save_config(config_to_save)
+    
+    def _on_output_directory_changed(self, event=None):
+        """Handle output directory change event.
+        
+        Args:
+            event: Optional event parameter.
+        """
+        self._save_config()
+    
     def _browse_output_folder(self, event=None):
         """Open folder dialog to select output directory.
 
@@ -1297,6 +1385,7 @@ class DefaceApp(DefaceAppBase):
         if folder:
             self.output_entry.delete(0, tk.END)
             self.output_entry.insert(0, folder)
+            self._save_config()
 
     def _open_settings(self):
         """Open the configuration settings dialog."""
@@ -1306,6 +1395,7 @@ class DefaceApp(DefaceAppBase):
         if dialog.result is not None:
             self.config = dialog.result
             logger.info(f"Configuration updated: {self.config}")
+            self._save_config()
 
     def _bring_to_front(self):
         """Bring the window to the foreground and give it focus."""
@@ -1368,10 +1458,6 @@ class DefaceApp(DefaceAppBase):
         self.stop_btn.configure(state="normal")
         self.add_files_btn.configure(state="disabled")
         self.remove_files_btn.configure(state="disabled")
-        
-        # Hide error log frame if showing
-        if self.log_frame.winfo_ismapped():
-            self.log_frame.pack_forget()
         
         logger.info(f"Starting batch processing of {len(files_to_process)} file(s)")
         
