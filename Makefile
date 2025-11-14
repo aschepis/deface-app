@@ -5,6 +5,7 @@ CONDA_PY := 3.12
 APP := Deface
 SPEC := deface.spec
 DIST_APP := dist/$(APP).app
+SIGNING_IDENTITY ?= -
 
 ### INTERNAL ##################################################################
 
@@ -28,11 +29,15 @@ help:
 	@echo "  make format          Auto-format code with black and isort"
 	@echo "  make check           Run tests and linting (fails on any error)"
 	@echo "  make build-macos     Build macOS .app bundle"
-	@echo "  make sign            Ad-hoc sign the .app"
+	@echo "  make sign            Sign the .app (use SIGNING_IDENTITY=<id> for real signing)"
 	@echo "  make dist            Create distributable .zip"
 	@echo "  make shell           Enter the conda env shell"
 	@echo "  make clean           Remove build output"
 	@echo "  make conda-remove    Remove the conda env entirely"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make sign                                    # Ad-hoc signing (for local testing)"
+	@echo "  make sign SIGNING_IDENTITY='Developer ID'   # Sign with Apple Developer ID"
 
 ### ENVIRONMENT MANAGEMENT ####################################################
 
@@ -94,7 +99,9 @@ build-macos:
 ### SIGNING ###################################################################
 
 sign:
-	codesign --force --deep --sign - $(DIST_APP)
+	@echo "→ Signing $(DIST_APP) with identity: $(SIGNING_IDENTITY)"
+	codesign --force --deep --sign "$(SIGNING_IDENTITY)" $(DIST_APP)
+	@echo "✓ Signing complete!"
 
 ### PACKAGING #################################################################
 
