@@ -8,13 +8,14 @@ import argparse
 import logging
 import os
 import queue
+import shutil
 import subprocess
 import sys
 import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from progress_parser import ProgressParser
 from config_manager import load_config, save_config, get_default_config
@@ -134,6 +135,49 @@ def build_deface_args(config: Dict[str, Any]) -> list:
     return args
 
 
+def _find_deface_command() -> List[str]:
+    """Locate the `deface` CLI command in both dev and bundled environments.
+
+    Resolution order:
+      1. If `deface` is on PATH, use that.
+      2. If running from a PyInstaller bundle, look for a bundled `deface`
+         executable next to the main binary.
+
+    Returns:
+        A list representing the command prefix to invoke `deface`.
+
+    Raises:
+        FileNotFoundError: If no suitable `deface` executable can be found.
+    """
+    # 1. Prefer a system / environment deface if available
+    path_cmd = shutil.which("deface")
+    if path_cmd:
+        return [path_cmd]
+
+    # 2. Look for a bundled deface binary next to the main executable
+    exe_path = Path(sys.executable).resolve()
+
+    candidates = []
+    if sys.platform == "win32":
+        candidates.append(exe_path.parent / "deface.exe")
+        candidates.append(exe_path.parent / "deface")
+    else:
+        # On macOS / Linux, we bundle a plain `deface` binary
+        # For macOS .app, sys.executable is .../Deface.app/Contents/MacOS/Deface
+        candidates.append(exe_path.parent / "deface")
+
+    for candidate in candidates:
+        if candidate.exists() and os.access(candidate, os.X_OK):
+            return [str(candidate)]
+
+    # Nothing found – raise a helpful error
+    raise FileNotFoundError(
+        "Could not find the 'deface' executable. "
+        "Please ensure it is installed (e.g. `pip install deface`) "
+        "or rebuild the app in an environment where `deface` is available."
+    )
+
+
 def run_deface(
     input_path: str, output_path: str, config: Optional[Dict[str, Any]] = None
 ) -> subprocess.Popen:
@@ -151,12 +195,15 @@ def run_deface(
         FileNotFoundError: If the deface command cannot be found.
         OSError: If the subprocess cannot be started.
     """
-    cmd = [
-        "deface",
-        input_path,
-        "--output",
-        output_path,
-    ]
+    # Build base command (deface executable + required args)
+    cmd = _find_deface_command()
+    cmd.extend(
+        [
+            input_path,
+            "--output",
+            output_path,
+        ]
+    )
 
     if config:
         cmd.extend(build_deface_args(config))

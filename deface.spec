@@ -1,4 +1,14 @@
-# deface.spec
+"""PyInstaller spec for Deface GUI application.
+
+This spec is responsible for bundling the GUI *and* the underlying
+`deface` CLI so that end-users do not need to install `deface`
+separately.
+"""
+
+from pathlib import Path
+from shutil import which
+
+
 app_name = "Deface"
 bundle_id = "com.defaceapp.deface"
 entry_script = "main.py"
@@ -6,12 +16,34 @@ icon_file = "icon.png"
 
 block_cipher = None
 
+
+def _collect_deface_cli() -> list:
+    """Return a binaries list entry for the `deface` CLI if available.
+
+    At build time we look up the `deface` executable in the current
+    environment (typically the Conda/venv used for building). If found,
+    we copy it into the root of the bundled application so the GUI can
+    invoke it directly without requiring a system-wide install.
+    """
+    deface_path = which("deface")
+    if not deface_path:
+        # Building without deface installed – bundle will still work,
+        # but runtime will show a clear error message.
+        print("WARNING: `deface` CLI not found on PATH – it will not be bundled.")
+        return []
+
+    print(f"Bundling `deface` CLI from: {deface_path}")
+    # (source, dest_dir_inside_bundle)
+    # We place it next to the main executable (dist/Deface/deface[.exe]).
+    return [(deface_path, ".")]
+
+
 a = Analysis(
     [entry_script],
     pathex=[],
-    binaries=[],
+    binaries=_collect_deface_cli(),
     datas=[],
-    hiddenimports=[],
+    hiddenimports=["deface"],  # ensure deface Python package is collected
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -31,7 +63,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=False,    # GUI mode
+    console=False,  # GUI mode
 )
 
 # REQUIRED → collects libs, binaries, datas into a folder
