@@ -58,7 +58,7 @@ A cross-platform GUI application for blurring faces in images and videos using t
 
 4. Run the application:
    ```bash
-   python gui_run_deface.py
+   python main.py
    ```
 
 ### Option 2: Build Standalone Executable
@@ -130,7 +130,7 @@ pip install -r requirements-dev.txt
 ```bash
 make test
 # Or manually:
-pytest tests/ -v --cov=gui_run_deface --cov-report=html
+pytest tests/ -v --cov=main --cov-report=html
 ```
 
 ### Code Quality

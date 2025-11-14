@@ -14,7 +14,7 @@ CONDA_RUN := conda run -n $(CONDA_ENV)
 ### TARGETS ###################################################################
 
 .PHONY: help conda-env conda-remove install install-dev build build-macos sign \
-        dist clean shell
+        dist clean shell test lint format check
 
 help:
 	@echo "Conda-based build system for macOS Deface.app"
@@ -23,6 +23,10 @@ help:
 	@echo "  make conda-env       Create the conda environment"
 	@echo "  make install         Install runtime dependencies"
 	@echo "  make install-dev     Install dev dependencies + pyinstaller"
+	@echo "  make test            Run tests with coverage"
+	@echo "  make lint            Run linting checks (flake8, black, isort, mypy)"
+	@echo "  make format          Auto-format code with black and isort"
+	@echo "  make check           Run tests and linting (fails on any error)"
 	@echo "  make build-macos     Build macOS .app bundle"
 	@echo "  make sign            Ad-hoc sign the .app"
 	@echo "  make dist            Create distributable .zip"
@@ -50,6 +54,35 @@ install:
 install-dev: install
 	$(CONDA_RUN) pip install -r requirements-dev.txt
 	$(CONDA_RUN) pip install pyinstaller
+
+### TESTING ###################################################################
+
+test:
+	$(CONDA_RUN) pytest tests/ -v
+
+### CODE QUALITY ###############################################################
+
+lint:
+	@echo "→ Running flake8..."
+	$(CONDA_RUN) flake8 main.py tests/
+	@echo "→ Running black (check mode)..."
+	$(CONDA_RUN) black --check main.py tests/
+	@echo "→ Running isort (check mode)..."
+	$(CONDA_RUN) isort --check-only main.py tests/
+	@echo "→ Running mypy..."
+	$(CONDA_RUN) mypy main.py
+	@echo "✓ All linting checks passed!"
+
+format:
+	@echo "→ Running black..."
+	$(CONDA_RUN) black main.py tests/
+	@echo "→ Running isort..."
+	$(CONDA_RUN) isort main.py tests/
+	@echo "✓ Code formatted!"
+
+check: test lint
+	@echo ""
+	@echo "✓ All checks passed!"
 
 ### BUILDING ##################################################################
 

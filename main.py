@@ -3,6 +3,7 @@
 This module provides a simple graphical interface for the deface library,
 allowing users to select input files and output directories for face blurring.
 """
+
 import logging
 import os
 import queue
@@ -12,7 +13,7 @@ import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from progress_parser import ProgressParser
 
@@ -44,7 +45,7 @@ ctk.set_appearance_mode("System")  # Modes: "System" (default), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (default), "green", "dark-blue"
 
 
-def build_deface_args(config: Dict) -> list:
+def build_deface_args(config: Dict[str, Any]) -> list:
     """Build command-line arguments from configuration dictionary.
 
     Args:
@@ -87,7 +88,7 @@ def build_deface_args(config: Dict) -> list:
 
 
 def run_deface(
-    input_path: str, output_path: str, config: Optional[Dict] = None
+    input_path: str, output_path: str, config: Optional[Dict[str, Any]] = None
 ) -> subprocess.Popen:
     """Run the deface command as a subprocess.
 
@@ -143,11 +144,11 @@ def get_resource_path(relative_path: str) -> str:
     """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
+        base_path = sys._MEIPASS  # type: ignore[attr-defined]
     except AttributeError:
         # Running in development mode
         base_path = Path(__file__).parent.absolute()
-    
+
     return str(Path(base_path) / relative_path)
 
 
@@ -205,7 +206,7 @@ def validate_paths(input_path: str, output_dir: str) -> Tuple[bool, Optional[str
 class ConfigDialog(ctk.CTkToplevel):
     """Configuration dialog for deface options."""
 
-    def __init__(self, parent, config: Dict):
+    def __init__(self, parent, config: Dict[str, Any]):
         super().__init__(parent)
 
         self.title("Deface Configuration")
@@ -218,7 +219,7 @@ class ConfigDialog(ctk.CTkToplevel):
 
         # Store configuration
         self.config = config.copy()
-        self.result = None
+        self.result: Optional[Dict[str, Any]] = None
 
         # Create widgets
         self._create_widgets()
@@ -256,7 +257,7 @@ class ConfigDialog(ctk.CTkToplevel):
         title_label = ctk.CTkLabel(
             main_frame,
             text="Deface Configuration",
-            font=ctk.CTkFont(size=20, weight="bold")
+            font=ctk.CTkFont(size=20, weight="bold"),
         )
         title_label.pack(pady=(0, 20))
 
@@ -269,16 +270,14 @@ class ConfigDialog(ctk.CTkToplevel):
         thresh_frame.pack(fill="x", pady=5, padx=10)
 
         ctk.CTkLabel(
-            thresh_frame,
-            text="Detection Threshold:",
-            font=ctk.CTkFont(size=12)
+            thresh_frame, text="Detection Threshold:", font=ctk.CTkFont(size=12)
         ).pack(anchor="w", padx=10, pady=(10, 5))
 
         ctk.CTkLabel(
             thresh_frame,
             text="Tune this to trade off between false positive and false negative rate",
             font=ctk.CTkFont(size=10),
-            text_color="gray"
+            text_color="gray",
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
         thresh_entry = ctk.CTkEntry(thresh_frame, width=150)
@@ -290,20 +289,20 @@ class ConfigDialog(ctk.CTkToplevel):
         scale_frame = ctk.CTkFrame(scrollable_frame)
         scale_frame.pack(fill="x", pady=5, padx=10)
 
-        ctk.CTkLabel(
-            scale_frame,
-            text="Scale (WxH):",
-            font=ctk.CTkFont(size=12)
-        ).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(scale_frame, text="Scale (WxH):", font=ctk.CTkFont(size=12)).pack(
+            anchor="w", padx=10, pady=(10, 5)
+        )
 
         ctk.CTkLabel(
             scale_frame,
             text="Downscale images for network inference (e.g., 640x360). Leave empty for no scaling.",
             font=ctk.CTkFont(size=10),
-            text_color="gray"
+            text_color="gray",
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
-        scale_entry = ctk.CTkEntry(scale_frame, width=150, placeholder_text="e.g., 640x360")
+        scale_entry = ctk.CTkEntry(
+            scale_frame, width=150, placeholder_text="e.g., 640x360"
+        )
         if self.config.get("scale"):
             scale_entry.insert(0, self.config["scale"])
         scale_entry.pack(anchor="w", padx=10, pady=(0, 10))
@@ -313,24 +312,20 @@ class ConfigDialog(ctk.CTkToplevel):
         boxes_frame = ctk.CTkFrame(scrollable_frame)
         boxes_frame.pack(fill="x", pady=5, padx=10)
 
-        ctk.CTkLabel(
-            boxes_frame,
-            text="Use Boxes:",
-            font=ctk.CTkFont(size=12)
-        ).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(boxes_frame, text="Use Boxes:", font=ctk.CTkFont(size=12)).pack(
+            anchor="w", padx=10, pady=(10, 5)
+        )
 
         ctk.CTkLabel(
             boxes_frame,
             text="Use boxes instead of ellipse masks",
             font=ctk.CTkFont(size=10),
-            text_color="gray"
+            text_color="gray",
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
         boxes_var = tk.BooleanVar(value=self.config.get("boxes", False))
         boxes_checkbox = ctk.CTkCheckBox(
-            boxes_frame,
-            text="Use boxes",
-            variable=boxes_var
+            boxes_frame, text="Use boxes", variable=boxes_var
         )
         boxes_checkbox.pack(anchor="w", padx=10, pady=(0, 10))
         self.boxes_var = boxes_var
@@ -340,16 +335,14 @@ class ConfigDialog(ctk.CTkToplevel):
         mask_scale_frame.pack(fill="x", pady=5, padx=10)
 
         ctk.CTkLabel(
-            mask_scale_frame,
-            text="Mask Scale Factor:",
-            font=ctk.CTkFont(size=12)
+            mask_scale_frame, text="Mask Scale Factor:", font=ctk.CTkFont(size=12)
         ).pack(anchor="w", padx=10, pady=(10, 5))
 
         ctk.CTkLabel(
             mask_scale_frame,
             text="Scale factor for face masks to ensure complete face coverage",
             font=ctk.CTkFont(size=10),
-            text_color="gray"
+            text_color="gray",
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
         mask_scale_entry = ctk.CTkEntry(mask_scale_frame, width=150)
@@ -362,25 +355,20 @@ class ConfigDialog(ctk.CTkToplevel):
         replace_frame.pack(fill="x", pady=5, padx=10)
 
         ctk.CTkLabel(
-            replace_frame,
-            text="Anonymization Mode:",
-            font=ctk.CTkFont(size=12)
+            replace_frame, text="Anonymization Mode:", font=ctk.CTkFont(size=12)
         ).pack(anchor="w", padx=10, pady=(10, 5))
 
         ctk.CTkLabel(
             replace_frame,
             text="Filter mode for face regions",
             font=ctk.CTkFont(size=10),
-            text_color="gray"
+            text_color="gray",
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
         replace_options = ["blur", "solid", "none", "img", "mosaic"]
         replace_var = tk.StringVar(value=self.config.get("replacewith", "blur"))
         replace_menu = ctk.CTkOptionMenu(
-            replace_frame,
-            values=replace_options,
-            variable=replace_var,
-            width=150
+            replace_frame, values=replace_options, variable=replace_var, width=150
         )
         replace_menu.pack(anchor="w", padx=10, pady=(0, 10))
         self.replace_var = replace_var
@@ -389,24 +377,20 @@ class ConfigDialog(ctk.CTkToplevel):
         audio_frame = ctk.CTkFrame(scrollable_frame)
         audio_frame.pack(fill="x", pady=5, padx=10)
 
-        ctk.CTkLabel(
-            audio_frame,
-            text="Keep Audio:",
-            font=ctk.CTkFont(size=12)
-        ).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(audio_frame, text="Keep Audio:", font=ctk.CTkFont(size=12)).pack(
+            anchor="w", padx=10, pady=(10, 5)
+        )
 
         ctk.CTkLabel(
             audio_frame,
             text="Keep audio from video source file (only applies to videos)",
             font=ctk.CTkFont(size=10),
-            text_color="gray"
+            text_color="gray",
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
         audio_var = tk.BooleanVar(value=self.config.get("keep_audio", True))
         audio_checkbox = ctk.CTkCheckBox(
-            audio_frame,
-            text="Keep audio",
-            variable=audio_var
+            audio_frame, text="Keep audio", variable=audio_var
         )
         audio_checkbox.pack(anchor="w", padx=10, pady=(0, 10))
         self.audio_var = audio_var
@@ -416,23 +400,19 @@ class ConfigDialog(ctk.CTkToplevel):
         metadata_frame.pack(fill="x", pady=5, padx=10)
 
         ctk.CTkLabel(
-            metadata_frame,
-            text="Keep Metadata:",
-            font=ctk.CTkFont(size=12)
+            metadata_frame, text="Keep Metadata:", font=ctk.CTkFont(size=12)
         ).pack(anchor="w", padx=10, pady=(10, 5))
 
         ctk.CTkLabel(
             metadata_frame,
             text="Keep metadata of the original image",
             font=ctk.CTkFont(size=10),
-            text_color="gray"
+            text_color="gray",
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
         metadata_var = tk.BooleanVar(value=self.config.get("keep_metadata", True))
         metadata_checkbox = ctk.CTkCheckBox(
-            metadata_frame,
-            text="Keep metadata",
-            variable=metadata_var
+            metadata_frame, text="Keep metadata", variable=metadata_var
         )
         metadata_checkbox.pack(anchor="w", padx=10, pady=(0, 10))
         self.metadata_var = metadata_var
@@ -441,12 +421,7 @@ class ConfigDialog(ctk.CTkToplevel):
         button_frame = ctk.CTkFrame(main_frame)
         button_frame.pack(fill="x", pady=(0, 0))
 
-        ok_btn = ctk.CTkButton(
-            button_frame,
-            text="OK",
-            command=self._on_ok,
-            width=100
-        )
+        ok_btn = ctk.CTkButton(button_frame, text="OK", command=self._on_ok, width=100)
         ok_btn.pack(side="right", padx=10)
 
         cancel_btn = ctk.CTkButton(
@@ -454,7 +429,7 @@ class ConfigDialog(ctk.CTkToplevel):
             text="Cancel",
             command=self._on_cancel,
             width=100,
-            fg_color="gray"
+            fg_color="gray",
         )
         cancel_btn.pack(side="right", padx=10)
 
@@ -462,21 +437,25 @@ class ConfigDialog(ctk.CTkToplevel):
         self.bind("<Return>", lambda e: self._on_ok())
         self.bind("<Escape>", lambda e: self._on_cancel())
 
-    def _on_ok(self):
+    def _on_ok(self):  # noqa: C901
         """Handle OK button click."""
         try:
             # Validate and collect configuration
-            config = {}
+            config: Dict[str, Any] = {}
 
             # Thresh
             try:
                 thresh_val = float(self.thresh_entry.get().strip())
                 if thresh_val < 0 or thresh_val > 1:
-                    messagebox.showerror("Error", "Detection threshold must be between 0 and 1.")
+                    messagebox.showerror(
+                        "Error", "Detection threshold must be between 0 and 1."
+                    )
                     return
                 config["thresh"] = thresh_val
             except ValueError:
-                messagebox.showerror("Error", "Detection threshold must be a valid number.")
+                messagebox.showerror(
+                    "Error", "Detection threshold must be a valid number."
+                )
                 return
 
             # Scale
@@ -484,7 +463,9 @@ class ConfigDialog(ctk.CTkToplevel):
             if scale_val:
                 # Validate format (WxH)
                 if "x" not in scale_val.lower():
-                    messagebox.showerror("Error", "Scale must be in format WxH (e.g., 640x360).")
+                    messagebox.showerror(
+                        "Error", "Scale must be in format WxH (e.g., 640x360)."
+                    )
                     return
                 try:
                     parts = scale_val.lower().split("x")
@@ -493,7 +474,10 @@ class ConfigDialog(ctk.CTkToplevel):
                     int(parts[0])
                     int(parts[1])
                 except ValueError:
-                    messagebox.showerror("Error", "Scale must be in format WxH with valid integers (e.g., 640x360).")
+                    messagebox.showerror(
+                        "Error",
+                        "Scale must be in format WxH with valid integers (e.g., 640x360).",
+                    )
                     return
                 config["scale"] = scale_val
 
@@ -504,11 +488,15 @@ class ConfigDialog(ctk.CTkToplevel):
             try:
                 mask_scale_val = float(self.mask_scale_entry.get().strip())
                 if mask_scale_val <= 0:
-                    messagebox.showerror("Error", "Mask scale factor must be greater than 0.")
+                    messagebox.showerror(
+                        "Error", "Mask scale factor must be greater than 0."
+                    )
                     return
                 config["mask_scale"] = mask_scale_val
             except ValueError:
-                messagebox.showerror("Error", "Mask scale factor must be a valid number.")
+                messagebox.showerror(
+                    "Error", "Mask scale factor must be a valid number."
+                )
                 return
 
             # Replace with
@@ -548,7 +536,7 @@ class DefaceApp(ctk.CTk):
             # Try icon.ico first (better for Windows), then fall back to icon.png
             icon_ico_path = get_resource_path("icon.ico")
             icon_png_path = get_resource_path("icon.png")
-            
+
             if Path(icon_ico_path).exists():
                 # Use iconbitmap for .ico files (works on Windows)
                 try:
@@ -599,7 +587,9 @@ class DefaceApp(ctk.CTk):
 
         # Title
         title_label = ctk.CTkLabel(
-            main_frame, text="Face Blurring Tool", font=ctk.CTkFont(size=24, weight="bold")
+            main_frame,
+            text="Face Blurring Tool",
+            font=ctk.CTkFont(size=24, weight="bold"),
         )
         title_label.pack(pady=(0, 20))
 
@@ -607,14 +597,16 @@ class DefaceApp(ctk.CTk):
         input_frame = ctk.CTkFrame(main_frame)
         input_frame.pack(fill="x", pady=10)
 
-        ctk.CTkLabel(input_frame, text="Input image/video:", font=ctk.CTkFont(size=14)).pack(
-            anchor="w", padx=10, pady=10
-        )
+        ctk.CTkLabel(
+            input_frame, text="Input image/video:", font=ctk.CTkFont(size=14)
+        ).pack(anchor="w", padx=10, pady=10)
 
         input_row = ctk.CTkFrame(input_frame)
         input_row.pack(fill="x", padx=10, pady=(0, 10))
 
-        self.input_entry = ctk.CTkEntry(input_row, placeholder_text="Select input file...")
+        self.input_entry = ctk.CTkEntry(
+            input_row, placeholder_text="Select input file..."
+        )
         # Prevent entry field from triggering browse on click
         self.input_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
 
@@ -627,16 +619,18 @@ class DefaceApp(ctk.CTk):
         output_frame = ctk.CTkFrame(main_frame)
         output_frame.pack(fill="x", pady=10)
 
-        ctk.CTkLabel(output_frame, text="Output folder:", font=ctk.CTkFont(size=14)).pack(
-            anchor="w", padx=10, pady=10
-        )
+        ctk.CTkLabel(
+            output_frame, text="Output folder:", font=ctk.CTkFont(size=14)
+        ).pack(anchor="w", padx=10, pady=10)
 
         output_row = ctk.CTkFrame(output_frame)
         output_row.pack(fill="x", padx=10, pady=(0, 10))
 
         # Set default output folder to Desktop
         default_output = get_desktop_path()
-        self.output_entry = ctk.CTkEntry(output_row, placeholder_text="Select output folder...")
+        self.output_entry = ctk.CTkEntry(
+            output_row, placeholder_text="Select output folder..."
+        )
         self.output_entry.insert(0, default_output)
         self.output_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
 
@@ -679,9 +673,7 @@ class DefaceApp(ctk.CTk):
             anchor="w", padx=10, pady=(10, 5)
         )
 
-        self.log_textbox = ctk.CTkTextbox(
-            log_frame, font=("Courier", 11), wrap="word"
-        )
+        self.log_textbox = ctk.CTkTextbox(log_frame, font=("Courier", 11), wrap="word")
         self.log_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         # Buttons
@@ -694,12 +686,21 @@ class DefaceApp(ctk.CTk):
         self.run_btn.pack(side="left", padx=10)
 
         settings_btn = ctk.CTkButton(
-            button_frame, text="Settings", command=self._open_settings, width=120, height=40
+            button_frame,
+            text="Settings",
+            command=self._open_settings,
+            width=120,
+            height=40,
         )
         settings_btn.pack(side="left", padx=10)
 
         quit_btn = ctk.CTkButton(
-            button_frame, text="Quit", command=self._on_closing, width=120, height=40, fg_color="gray"
+            button_frame,
+            text="Quit",
+            command=self._on_closing,
+            width=120,
+            height=40,
+            fg_color="gray",
         )
         quit_btn.pack(side="right", padx=10)
 
@@ -718,7 +719,10 @@ class DefaceApp(ctk.CTk):
             parent=self,
             title="Select input image or video",
             filetypes=[
-                ("All supported", "*.jpg *.jpeg *.png *.bmp *.tiff *.mp4 *.avi *.mov *.mkv"),
+                (
+                    "All supported",
+                    "*.jpg *.jpeg *.png *.bmp *.tiff *.mp4 *.avi *.mov *.mkv",
+                ),
                 ("Images", "*.jpg *.jpeg *.png *.bmp *.tiff"),
                 ("Videos", "*.mp4 *.avi *.mov *.mkv"),
                 ("All files", "*.*"),
@@ -789,7 +793,10 @@ class DefaceApp(ctk.CTk):
     def _run_deface(self):
         """Handle the Run button click."""
         if self.process_thread and self.process_thread.is_alive():
-            messagebox.showwarning("Process Running", "A process is already running. Please wait for it to complete.")
+            messagebox.showwarning(
+                "Process Running",
+                "A process is already running. Please wait for it to complete.",
+            )
             return
 
         input_path = self.input_entry.get().strip()
@@ -819,9 +826,7 @@ class DefaceApp(ctk.CTk):
 
             # Start deface process in background thread
             self.process_thread = threading.Thread(
-                target=self._run_deface_thread,
-                args=(input_path, out_path),
-                daemon=True
+                target=self._run_deface_thread, args=(input_path, out_path), daemon=True
             )
             self.process_thread.start()
             self._update_log("Started processing...\n", append=True)
@@ -836,7 +841,7 @@ class DefaceApp(ctk.CTk):
     def _read_stream(self, stream, stream_type: str):
         """Read from a stream (stdout or stderr) and queue output."""
         try:
-            for line in iter(stream.readline, ''):
+            for line in iter(stream.readline, ""):
                 if line:
                     self.output_queue.put((stream_type, line))
         except Exception as e:
@@ -852,14 +857,10 @@ class DefaceApp(ctk.CTk):
 
             # Start threads to read stdout and stderr concurrently
             stdout_thread = threading.Thread(
-                target=self._read_stream,
-                args=(self.proc.stdout, 'stdout'),
-                daemon=True
+                target=self._read_stream, args=(self.proc.stdout, "stdout"), daemon=True
             )
             stderr_thread = threading.Thread(
-                target=self._read_stream,
-                args=(self.proc.stderr, 'stderr'),
-                daemon=True
+                target=self._read_stream, args=(self.proc.stderr, "stderr"), daemon=True
             )
 
             stdout_thread.start()
@@ -873,15 +874,15 @@ class DefaceApp(ctk.CTk):
             stderr_thread.join(timeout=1)
 
             # Queue completion message
-            self.output_queue.put(('done', return_code))
+            self.output_queue.put(("done", return_code))
 
         except Exception as e:
             logger.error(f"Error in deface thread: {e}")
-            self.output_queue.put(('error', str(e)))
+            self.output_queue.put(("error", str(e)))
         finally:
             self.proc = None
 
-    def _check_process_output(self):
+    def _check_process_output(self):  # noqa: C901
         """Periodically check for process output from queue and update UI."""
         try:
             # Process all available messages from the queue
@@ -889,32 +890,35 @@ class DefaceApp(ctk.CTk):
                 try:
                     msg_type, content = self.output_queue.get_nowait()
 
-                    if msg_type == 'stdout':
+                    if msg_type == "stdout":
                         self._update_log(content, append=True)
                         # Try to parse progress from stdout
                         self._update_progress(content)
-                    elif msg_type == 'stderr':
+                    elif msg_type == "stderr":
                         # Display stderr output (may include warnings, progress, or errors)
                         self._update_log(content, append=True)
                         # Try to parse progress from stderr (tqdm often outputs to stderr)
                         self._update_progress(content)
-                    elif msg_type == 'done':
+                    elif msg_type == "done":
                         return_code = content
                         # Complete the progress bar
                         self.progress_bar.set(1.0)
                         if return_code == 0:
-                            self._update_log("\n✓ Process completed successfully.\n", append=True)
+                            self._update_log(
+                                "\n✓ Process completed successfully.\n", append=True
+                            )
                             self.progress_info_label.configure(text="✓ Completed")
                         else:
                             self._update_log(
-                                f"\n✗ Process finished with error code: {return_code}\n", append=True
+                                f"\n✗ Process finished with error code: {return_code}\n",
+                                append=True,
                             )
                             self.progress_info_label.configure(text="✗ Failed")
                         self.progress_stats_label.configure(text="")
                         self.proc = None
                         self.process_thread = None
                         self.run_btn.configure(state="normal")
-                    elif msg_type == 'error':
+                    elif msg_type == "error":
                         error_msg = f"Error: {content}\n"
                         self._update_log(error_msg, append=True)
                         self.progress_bar.set(0)
@@ -958,7 +962,9 @@ class DefaceApp(ctk.CTk):
     def _on_closing(self):
         """Handle window closing event."""
         if self.process_thread and self.process_thread.is_alive():
-            if messagebox.askokcancel("Quit", "A process is running. Do you want to terminate it and quit?"):
+            if messagebox.askokcancel(
+                "Quit", "A process is running. Do you want to terminate it and quit?"
+            ):
                 logger.info("Terminating running process...")
                 if self.proc and self.proc.poll() is None:
                     self.proc.terminate()

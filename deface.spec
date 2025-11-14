@@ -1,7 +1,7 @@
 # deface.spec
 app_name = "Deface"
 bundle_id = "com.defaceapp.deface"
-entry_script = "gui_run_deface.py"
+entry_script = "main.py"
 icon_file = "icon.png"
 
 block_cipher = None
