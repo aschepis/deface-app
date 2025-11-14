@@ -69,9 +69,21 @@ To enable automatic signing and notarization, you need to configure the followin
 
 ### Accessing GitHub Secrets
 
+GitHub secrets can be stored at the repository level or in an environment. The workflow is configured to use the **Release** environment.
+
+**Option 1: Using an Environment (Recommended)**
+1. Go to your repository on GitHub
+2. Click **Settings** → **Environments**
+3. Click **New environment** and name it `Release`
+4. Click **Add secret** under "Environment secrets" for each secret below
+
+**Option 2: Using Repository Secrets**
 1. Go to your repository on GitHub
 2. Click **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret** for each secret below
+4. Remove the `environment: Release` line from `.github/workflows/release.yml`
+
+Using environments provides better security and allows you to add deployment protection rules (like requiring approval before releases).
 
 ### Required Secrets for macOS Signing & Notarization
 
@@ -174,6 +186,37 @@ make dist-macos VERSION=1.2.3 SIGNING_IDENTITY="Developer ID Application: Your N
 1. After building and signing locally, copy the .app to a different Mac
 2. Try to open it - if properly signed and notarized, it should open without warnings
 3. Right-click → Open for the first time if you get a warning
+
+#### Verifying Code Signatures
+
+Use these commands to inspect and verify the signature:
+
+```bash
+# Basic signature verification
+codesign --verify --verbose=4 dist/Deface.app
+
+# Display detailed signing information
+codesign --display --verbose=4 dist/Deface.app
+
+# Verify all nested code (deep verification)
+codesign --verify --deep --strict --verbose=2 dist/Deface.app
+
+# Check if it will pass Gatekeeper
+spctl --assess --verbose=4 --type execute dist/Deface.app
+
+# Check notarization status
+stapler validate dist/Deface.app
+
+# Find unsigned components (if verification fails)
+find dist/Deface.app -type f \( -name "*.dylib" -o -name "*.so" -o -perm +111 \) | while read file; do
+  codesign --verify "$file" 2>&1 | grep -q "not signed" && echo "Unsigned: $file"
+done
+```
+
+**Expected output for properly signed app:**
+- `codesign --verify`: No output (success)
+- `spctl --assess`: `dist/Deface.app: accepted`
+- `stapler validate`: `The validate action worked!` (if notarized)
 
 ### Windows
 
