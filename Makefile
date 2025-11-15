@@ -118,7 +118,15 @@ sign:
 				--options runtime \
 				"$$lib" 2>/dev/null || true; \
 		done; \
-		echo "→ Step 2: Signing nested executables..."; \
+		echo "→ Step 2: Signing executable helpers inside Frameworks (e.g. ffmpeg)..."; \
+		find $(DIST_APP)/Contents/Frameworks -type f -perm +111 ! \( -name "*.dylib" -o -name "*.so" \) 2>/dev/null | while read binary; do \
+			echo "  Signing: $$binary"; \
+			codesign --force --sign "$(SIGNING_IDENTITY)" \
+				--timestamp \
+				--options runtime \
+				"$$binary" 2>/dev/null || true; \
+		done; \
+		echo "→ Step 3: Signing nested executables..."; \
 		find $(DIST_APP)/Contents/MacOS -type f -perm +111 ! -name "$(APP)" 2>/dev/null | while read binary; do \
 			echo "  Signing: $$binary"; \
 			codesign --force --sign "$(SIGNING_IDENTITY)" \
@@ -133,7 +141,7 @@ sign:
 				--options runtime \
 				"$$binary" 2>/dev/null || true; \
 		done; \
-		echo "→ Step 3: Signing main executable..."; \
+		echo "→ Step 4: Signing main executable..."; \
 		if [ -f $(DIST_APP)/Contents/MacOS/$(APP) ]; then \
 			codesign --force --sign "$(SIGNING_IDENTITY)" \
 				--timestamp \
@@ -141,7 +149,7 @@ sign:
 				--entitlements entitlements.plist \
 				$(DIST_APP)/Contents/MacOS/$(APP); \
 		fi; \
-		echo "→ Step 4: Signing app bundle..."; \
+		echo "→ Step 5: Signing app bundle..."; \
 		codesign --force --sign "$(SIGNING_IDENTITY)" \
 			--timestamp \
 			--options runtime \
