@@ -1,47 +1,24 @@
 """PyInstaller spec for Deface GUI application.
 
-This spec is responsible for bundling the GUI *and* the underlying
-`deface` CLI so that end-users do not need to install `deface`
-separately.
+This spec is responsible for bundling the GUI *and* a small, internal
+`deface` CLI entry point so that end-users do not need to install
+`deface` separately.
 """
-
-from pathlib import Path
-from shutil import which
 
 
 app_name = "Deface"
 bundle_id = "com.defaceapp.deface"
 entry_script = "main.py"
+cli_entry_script = "deface_cli_entry.py"
 icon_file = "icon.png"
 
 block_cipher = None
 
 
-def _collect_deface_cli() -> list:
-    """Return a binaries list entry for the `deface` CLI if available.
-
-    At build time we look up the `deface` executable in the current
-    environment (typically the Conda/venv used for building). If found,
-    we copy it into the root of the bundled application so the GUI can
-    invoke it directly without requiring a system-wide install.
-    """
-    deface_path = which("deface")
-    if not deface_path:
-        # Building without deface installed – bundle will still work,
-        # but runtime will show a clear error message.
-        print("WARNING: `deface` CLI not found on PATH – it will not be bundled.")
-        return []
-
-    print(f"Bundling `deface` CLI from: {deface_path}")
-    # (source, dest_dir_inside_bundle)
-    # We place it next to the main executable (dist/Deface/deface[.exe]).
-    return [(deface_path, ".")]
-
-
 a = Analysis(
-    [entry_script],
+    [entry_script, cli_entry_script],
     pathex=[],
-    binaries=_collect_deface_cli(),
+    binaries=[],
     datas=[],
     hiddenimports=["deface"],  # ensure deface Python package is collected
     hookspath=[],
@@ -53,7 +30,7 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(
+gui_exe = EXE(
     pyz,
     a.scripts,
     [],
@@ -66,9 +43,27 @@ exe = EXE(
     console=False,  # GUI mode
 )
 
+# Standalone CLI executable that runs the deface library from the bundled
+# Python runtime. This will typically live next to the GUI binary, e.g.:
+#   macOS: Deface.app/Contents/MacOS/deface
+#   Win/Linux: dist/Deface/deface(.exe)
+cli_exe = EXE(
+    pyz,
+    [("deface_cli_entry", cli_entry_script, "PYSOURCE")],
+    [],
+    exclude_binaries=True,
+    name="deface",
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    console=True,  # CLI mode
+)
+
 # REQUIRED → collects libs, binaries, datas into a folder
 coll = COLLECT(
-    exe,
+    gui_exe,
+    cli_exe,
     a.binaries,
     a.datas,
     a.zipfiles,
