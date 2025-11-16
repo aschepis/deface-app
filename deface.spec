@@ -38,7 +38,10 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 gui_exe = EXE(
     pyz,
-    a.scripts,
+    # IMPORTANT: only the GUI entry script should be used as the main
+    # executable. Including `deface_cli_entry.py` here would cause the
+    # CLI to become the primary entry point of the app bundle.
+    [("main", entry_script, "PYSOURCE")],
     [],
     exclude_binaries=True,
     name=app_name,
