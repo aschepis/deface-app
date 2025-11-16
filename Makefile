@@ -100,6 +100,24 @@ build: build-macos
 
 build-macos:
 	$(CONDA_RUN) python -m PyInstaller $(SPEC)
+	@echo "→ Post-processing: Moving Tcl/Tk libraries to lib directory..."
+	@if [ -d "$(DIST_APP)/Contents/Resources/tcl" ]; then \
+		mkdir -p $(DIST_APP)/Contents/lib; \
+		if [ -d "$(DIST_APP)/Contents/lib/tcl8.6" ]; then \
+			rm -rf $(DIST_APP)/Contents/lib/tcl8.6; \
+		fi; \
+		mv $(DIST_APP)/Contents/Resources/tcl $(DIST_APP)/Contents/lib/tcl8.6; \
+		echo "  ✓ Moved Tcl library to Contents/lib/tcl8.6"; \
+	fi
+	@if [ -d "$(DIST_APP)/Contents/Resources/tk" ]; then \
+		mkdir -p $(DIST_APP)/Contents/lib; \
+		if [ -d "$(DIST_APP)/Contents/lib/tk8.6" ]; then \
+			rm -rf $(DIST_APP)/Contents/lib/tk8.6; \
+		fi; \
+		mv $(DIST_APP)/Contents/Resources/tk $(DIST_APP)/Contents/lib/tk8.6; \
+		echo "  ✓ Moved Tk library to Contents/lib/tk8.6"; \
+	fi
+	@echo "✓ Post-processing complete!"
 
 ### SIGNING ###################################################################
 
