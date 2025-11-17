@@ -81,7 +81,7 @@ def load_config() -> Dict[str, Any]:
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
+            config: Dict[str, Any] = json.load(f)
         logger.info(f"Loaded configuration from: {config_path}")
         return config
     except (json.JSONDecodeError, IOError, OSError) as e:

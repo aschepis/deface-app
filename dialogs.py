@@ -400,7 +400,7 @@ class ConfigDialog(ctk.CTkToplevel):
         Returns:
             Scale value if valid (empty string for no scaling), None if invalid.
         """
-        scale_val = self.scale_entry.get().strip()
+        scale_val: str = self.scale_entry.get().strip()
         if not scale_val:
             return ""
 

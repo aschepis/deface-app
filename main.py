@@ -17,10 +17,6 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 from typing import Any, Dict, List, Optional, Tuple
 
-from progress_parser import ProgressParser
-from config_manager import load_config, save_config, get_default_config
-from dialogs import LogDialog, ConfigDialog
-
 try:
     import customtkinter as ctk
 except ImportError:
@@ -46,6 +42,10 @@ except ImportError:
     DND_FILES = None
     TkinterDnD = None
 
+from config_manager import get_default_config, load_config, save_config
+from dialogs import ConfigDialog, LogDialog
+from progress_parser import ProgressParser
+
 # Version information
 __version__ = "1.0.0"
 
@@ -58,28 +58,36 @@ MAX_BATCH_SIZE = 8
 PROGRESS_CHECK_INTERVAL_MS = 50
 
 # Supported file extensions
-SUPPORTED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.mp4', '.avi', '.mov', '.mkv'}
-IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff'}
-VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv'}
+SUPPORTED_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".bmp",
+    ".tiff",
+    ".mp4",
+    ".avi",
+    ".mov",
+    ".mkv",
+}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
+VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv"}
 
 # Status colors for file processing
 STATUS_COLORS = {
-    'pending': ('gray', 'Pending'),
-    'processing': ('blue', 'Processing'),
-    'success': ('green', 'Success'),
-    'failed': ('red', 'Failed')
+    "pending": ("gray", "Pending"),
+    "processing": ("blue", "Processing"),
+    "success": ("green", "Success"),
+    "failed": ("red", "Failed"),
 }
 
 # Keywords for error detection in logs
-ERROR_KEYWORDS = ['error', 'warning', 'exception', 'failed', 'traceback']
+ERROR_KEYWORDS = ["error", "warning", "exception", "failed", "traceback"]
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stderr)  # Ensure logs go to stderr
-    ]
+    handlers=[logging.StreamHandler(sys.stderr)],  # Ensure logs go to stderr
 )
 logger = logging.getLogger(__name__)
 
@@ -352,12 +360,17 @@ def validate_paths(input_path: str, output_dir: str) -> Tuple[bool, Optional[str
 
 # Create a base class that supports DnD if available
 if TkinterDnD:
+
     class DefaceAppBase(ctk.CTk, TkinterDnD.Tk):
         """Base class for DefaceApp with DnD support."""
+
         pass
+
 else:
-    class DefaceAppBase(ctk.CTk):
+
+    class DefaceAppBase(ctk.CTk):  # type: ignore[no-redef]
         """Base class for DefaceApp without DnD support."""
+
         pass
 
 
@@ -379,6 +392,7 @@ class DefaceApp(DefaceAppBase):
                 logger.warning(f"Could not initialize TkinterDnD: {e}")
                 print(f"Warning: Could not initialize TkinterDnD: {e}")
                 import traceback
+
                 traceback.print_exc()
 
         self.title(f"Deface — Batch Processing v{__version__}")
@@ -423,7 +437,9 @@ class DefaceApp(DefaceAppBase):
         saved_config = load_config()
         default_config = get_default_config()
 
-        self.config: Dict = saved_config.get("deface_config", default_config["deface_config"]).copy()
+        self.config: Dict = saved_config.get(
+            "deface_config", default_config["deface_config"]
+        ).copy()
         self.saved_output_directory = saved_config.get("output_directory")
 
         self._create_widgets()
@@ -487,12 +503,20 @@ class DefaceApp(DefaceAppBase):
         ).pack(side="left", padx=5)
 
         self.add_files_btn = ctk.CTkButton(
-            files_header, text="Add Files", command=self._add_files, width=100, height=30
+            files_header,
+            text="Add Files",
+            command=self._add_files,
+            width=100,
+            height=30,
         )
         self.add_files_btn.pack(side="right", padx=5)
 
         self.remove_files_btn = ctk.CTkButton(
-            files_header, text="Remove", command=self._remove_files, width=100, height=30
+            files_header,
+            text="Remove",
+            command=self._remove_files,
+            width=100,
+            height=30,
         )
         self.remove_files_btn.pack(side="right", padx=5)
 
@@ -516,14 +540,22 @@ class DefaceApp(DefaceAppBase):
         self.button_frame.pack(fill="x", pady=10)
 
         self.start_btn = ctk.CTkButton(
-            self.button_frame, text="Start", command=self._start_processing, width=120, height=40
+            self.button_frame,
+            text="Start",
+            command=self._start_processing,
+            width=120,
+            height=40,
         )
         self.start_btn.pack(side="left", padx=10)
         self.start_btn.configure(state="disabled")  # Disabled until files are added
 
         self.stop_btn = ctk.CTkButton(
-            self.button_frame, text="Stop", command=self._stop_processing, width=120, height=40,
-            fg_color="red"
+            self.button_frame,
+            text="Stop",
+            command=self._stop_processing,
+            width=120,
+            height=40,
+            fg_color="red",
         )
         self.stop_btn.pack(side="left", padx=10)
         self.stop_btn.configure(state="disabled")
@@ -562,7 +594,7 @@ class DefaceApp(DefaceAppBase):
         Returns:
             Frame containing the file row widgets.
         """
-        file_path = file_info['path']
+        file_path = file_info["path"]
 
         # Main row frame
         row_frame = ctk.CTkFrame(self.files_list_frame)
@@ -575,7 +607,7 @@ class DefaceApp(DefaceAppBase):
 
         filename = os.path.basename(file_path)
         if len(filename) > MAX_FILENAME_DISPLAY_LENGTH:
-            display_name = filename[:MAX_FILENAME_DISPLAY_LENGTH - 3] + "..."
+            display_name = filename[: MAX_FILENAME_DISPLAY_LENGTH - 3] + "..."
         else:
             display_name = filename
 
@@ -584,7 +616,7 @@ class DefaceApp(DefaceAppBase):
             text=display_name,
             font=ctk.CTkFont(size=11),
             width=250,
-            anchor="w"
+            anchor="w",
         )
         filename_label.pack(side="left", padx=5)
 
@@ -594,7 +626,7 @@ class DefaceApp(DefaceAppBase):
             text="Pending",
             font=ctk.CTkFont(size=10),
             width=70,
-            text_color="gray"
+            text_color="gray",
         )
         status_label.pack(side="left", padx=5)
 
@@ -609,7 +641,7 @@ class DefaceApp(DefaceAppBase):
             text="--:--",
             font=ctk.CTkFont(size=10),
             width=50,
-            text_color="gray"
+            text_color="gray",
         )
         eta_label.pack(side="left", padx=3)
 
@@ -619,17 +651,13 @@ class DefaceApp(DefaceAppBase):
             text="00:00",
             font=ctk.CTkFont(size=10),
             width=50,
-            text_color="gray"
+            text_color="gray",
         )
         elapsed_label.pack(side="left", padx=3)
 
         # Speed label
         speed_label = ctk.CTkLabel(
-            row_frame,
-            text="--",
-            font=ctk.CTkFont(size=10),
-            width=60,
-            text_color="gray"
+            row_frame, text="--", font=ctk.CTkFont(size=10), width=60, text_color="gray"
         )
         speed_label.pack(side="left", padx=3)
 
@@ -640,22 +668,22 @@ class DefaceApp(DefaceAppBase):
             command=lambda: self._show_file_logs(file_path),
             width=60,
             height=25,
-            fg_color="orange"
+            fg_color="orange",
         )
         # Don't pack it yet, will show on failure
 
         # Store widget references
         self.file_widgets[file_path] = {
-            'row_frame': row_frame,
-            'checkbox': checkbox,
-            'checkbox_var': checkbox_var,
-            'filename_label': filename_label,
-            'status_label': status_label,
-            'progress_bar': progress_bar,
-            'eta_label': eta_label,
-            'elapsed_label': elapsed_label,
-            'speed_label': speed_label,
-            'show_logs_btn': show_logs_btn
+            "row_frame": row_frame,
+            "checkbox": checkbox,
+            "checkbox_var": checkbox_var,
+            "filename_label": filename_label,
+            "status_label": status_label,
+            "progress_bar": progress_bar,
+            "eta_label": eta_label,
+            "elapsed_label": elapsed_label,
+            "speed_label": speed_label,
+            "show_logs_btn": show_logs_btn,
         }
 
         return row_frame
@@ -672,7 +700,7 @@ class DefaceApp(DefaceAppBase):
         # Find file info
         file_info = None
         for f in self.file_queue:
-            if f['path'] == file_path:
+            if f["path"] == file_path:
                 file_info = f
                 break
 
@@ -680,29 +708,29 @@ class DefaceApp(DefaceAppBase):
             return
 
         widgets = self.file_widgets[file_path]
-        status = file_info['status']
-        progress = file_info['progress']
+        status = file_info["status"]
+        progress = file_info["progress"]
 
-        color, text = STATUS_COLORS.get(status, ('gray', 'Unknown'))
-        widgets['status_label'].configure(text=text, text_color=color)
-        widgets['progress_bar'].set(progress)
+        color, text = STATUS_COLORS.get(status, ("gray", "Unknown"))
+        widgets["status_label"].configure(text=text, text_color=color)
+        widgets["progress_bar"].set(progress)
 
         # Disable checkbox while processing
-        if status == 'processing':
-            widgets['checkbox'].configure(state="disabled")
+        if status == "processing":
+            widgets["checkbox"].configure(state="disabled")
         else:
-            widgets['checkbox'].configure(state="normal")
+            widgets["checkbox"].configure(state="normal")
 
-        if status == 'failed' and file_info.get('error_log'):
-            widgets['show_logs_btn'].pack(side="left", padx=5)
+        if status == "failed" and file_info.get("error_log"):
+            widgets["show_logs_btn"].pack(side="left", padx=5)
         else:
-            widgets['show_logs_btn'].pack_forget()
+            widgets["show_logs_btn"].pack_forget()
 
     def _refresh_file_list_display(self):
         """Refresh the entire file list display."""
         # Clear existing widgets
         for widgets in self.file_widgets.values():
-            widgets['row_frame'].destroy()
+            widgets["row_frame"].destroy()
         self.file_widgets.clear()
 
         # Show/hide placeholder
@@ -717,7 +745,7 @@ class DefaceApp(DefaceAppBase):
             # Create rows for all files
             for file_info in self.file_queue:
                 self._create_file_row(file_info)
-                self._update_file_row(file_info['path'])
+                self._update_file_row(file_info["path"])
 
     def _add_files(self):
         """Open file dialog to select multiple input files and add them to the queue."""
@@ -749,7 +777,7 @@ class DefaceApp(DefaceAppBase):
 
         for file_path in file_paths:
             # Skip if already in queue
-            if any(f['path'] == file_path for f in self.file_queue):
+            if any(f["path"] == file_path for f in self.file_queue):
                 logger.info(f"File already in queue: {file_path}")
                 continue
 
@@ -766,15 +794,15 @@ class DefaceApp(DefaceAppBase):
 
             # Add to queue
             file_info = {
-                'path': file_path,
-                'status': 'pending',
-                'progress': 0.0,
-                'output_path': output_path,
-                'error_log': '',
-                'parser': ProgressParser(),  # Each file has its own progress parser
-                'eta': '--:--',
-                'elapsed': '00:00',
-                'speed': '--'
+                "path": file_path,
+                "status": "pending",
+                "progress": 0.0,
+                "output_path": output_path,
+                "error_log": "",
+                "parser": ProgressParser(),  # Each file has its own progress parser
+                "eta": "--:--",
+                "elapsed": "00:00",
+                "speed": "--",
             }
             self.file_queue.append(file_info)
             logger.info(f"Added file to queue: {file_path}")
@@ -788,14 +816,14 @@ class DefaceApp(DefaceAppBase):
         if self.is_processing:
             messagebox.showwarning(
                 "Processing",
-                "Cannot remove files while processing. Stop the process first."
+                "Cannot remove files while processing. Stop the process first.",
             )
             return
 
         # Find selected files
         files_to_remove = []
         for file_path, widgets in self.file_widgets.items():
-            if widgets['checkbox_var'].get():
+            if widgets["checkbox_var"].get():
                 files_to_remove.append(file_path)
 
         if not files_to_remove:
@@ -803,7 +831,9 @@ class DefaceApp(DefaceAppBase):
             return
 
         # Remove from queue
-        self.file_queue = [f for f in self.file_queue if f['path'] not in files_to_remove]
+        self.file_queue = [
+            f for f in self.file_queue if f["path"] not in files_to_remove
+        ]
 
         logger.info(f"Removed {len(files_to_remove)} file(s) from queue")
 
@@ -834,7 +864,7 @@ class DefaceApp(DefaceAppBase):
                 return "copy"  # Return action for tkinterdnd2
 
             # Use dnd_bind method directly on self (available after _require)
-            self.dnd_bind('<<Drop>>', drop_handler)
+            self.dnd_bind("<<Drop>>", drop_handler)
 
             logger.info("Drag and drop enabled on root window")
             print("Drag and drop enabled on root window")
@@ -846,17 +876,20 @@ class DefaceApp(DefaceAppBase):
                     # Call _require on canvas to make it DnD-capable
                     TkinterDnD._require(canvas)
                     canvas.drop_target_register(DND_FILES)
-                    canvas.dnd_bind('<<Drop>>', drop_handler)
+                    canvas.dnd_bind("<<Drop>>", drop_handler)
                     logger.info("Drag and drop also enabled on files list canvas")
                     print("Drag and drop also enabled on files list canvas")
             except (AttributeError, Exception) as e:
-                logger.debug(f"Could not enable DnD on canvas (root window DnD will handle it): {e}")
+                logger.debug(
+                    f"Could not enable DnD on canvas (root window DnD will handle it): {e}"
+                )
                 # This is okay - root window DnD will still work
 
         except Exception as e:
             logger.error(f"Failed to setup drag and drop: {e}", exc_info=True)
             print(f"Error setting up drag and drop: {e}")
             import traceback
+
             traceback.print_exc()
 
     def _on_drop(self, event):
@@ -870,7 +903,9 @@ class DefaceApp(DefaceAppBase):
             # tkinterdnd2 provides paths as a string, separated by spaces
             # Paths with spaces are wrapped in curly braces {}
             files_str = event.data
-            logger.info(f"Drop event received, data: {files_str[:200]}...")  # Log first 200 chars
+            logger.info(
+                f"Drop event received, data: {files_str[:200]}..."
+            )  # Log first 200 chars
             print(f"Drop event received! Data length: {len(files_str)} chars")
             print(f"First 200 chars: {files_str[:200]}")
 
@@ -889,18 +924,18 @@ class DefaceApp(DefaceAppBase):
             while i < len(files_str):
                 char = files_str[i]
 
-                if char == '{':
+                if char == "{":
                     in_braces = True
                     i += 1
                     continue
-                elif char == '}':
+                elif char == "}":
                     in_braces = False
                     if current_path:
                         file_paths.append(current_path)
                         current_path = ""
                     i += 1
                     continue
-                elif char == ' ' and not in_braces:
+                elif char == " " and not in_braces:
                     if current_path:
                         file_paths.append(current_path)
                         current_path = ""
@@ -917,11 +952,11 @@ class DefaceApp(DefaceAppBase):
             # If no paths found with braces parsing, try splitting by common separators
             if not file_paths:
                 # Try semicolon (Windows)
-                if ';' in files_str:
-                    file_paths = [p.strip() for p in files_str.split(';') if p.strip()]
+                if ";" in files_str:
+                    file_paths = [p.strip() for p in files_str.split(";") if p.strip()]
                 # Try newline
-                elif '\n' in files_str:
-                    file_paths = [p.strip() for p in files_str.split('\n') if p.strip()]
+                elif "\n" in files_str:
+                    file_paths = [p.strip() for p in files_str.split("\n") if p.strip()]
                 # Otherwise, split by space and hope for the best
                 else:
                     file_paths = [p.strip() for p in files_str.split() if p.strip()]
@@ -929,7 +964,7 @@ class DefaceApp(DefaceAppBase):
             logger.info(f"Parsed {len(file_paths)} path(s) from drop event")
 
             # Filter to only include files (not directories) and valid extensions
-            valid_files = []
+            valid_files: list[str] = []
 
             for file_path in file_paths:
                 # Remove any surrounding whitespace
@@ -948,8 +983,10 @@ class DefaceApp(DefaceAppBase):
                 if path_obj.is_dir():
                     # If it's a directory, recursively find all valid files
                     for ext in SUPPORTED_EXTENSIONS:
-                        valid_files.extend(path_obj.rglob(f"*{ext}"))
-                        valid_files.extend(path_obj.rglob(f"*{ext.upper()}"))
+                        valid_files.extend(str(p) for p in path_obj.rglob(f"*{ext}"))
+                        valid_files.extend(
+                            str(p) for p in path_obj.rglob(f"*{ext.upper()}")
+                        )
                 elif path_obj.is_file():
                     # Check if it's a valid file extension
                     if path_obj.suffix.lower() in SUPPORTED_EXTENSIONS:
@@ -968,13 +1005,15 @@ class DefaceApp(DefaceAppBase):
                 messagebox.showinfo(
                     "No Valid Files",
                     "No supported image or video files were found in the dropped items.\n\n"
-                    "Supported formats: JPG, PNG, BMP, TIFF, MP4, AVI, MOV, MKV"
+                    "Supported formats: JPG, PNG, BMP, TIFF, MP4, AVI, MOV, MKV",
                 )
 
         except Exception as e:
             logger.error(f"Error handling file drop: {e}", exc_info=True)
             print(f"Error handling file drop: {e}")
-            messagebox.showerror("Drop Error", f"Error processing dropped files: {str(e)}")
+            messagebox.showerror(
+                "Drop Error", f"Error processing dropped files: {str(e)}"
+            )
 
     def _show_file_logs(self, file_path: str):
         """Show error logs for a specific file in a separate dialog.
@@ -985,11 +1024,11 @@ class DefaceApp(DefaceAppBase):
         # Find file info
         file_info = None
         for f in self.file_queue:
-            if f['path'] == file_path:
+            if f["path"] == file_path:
                 file_info = f
                 break
 
-        if not file_info or not file_info.get('error_log'):
+        if not file_info or not file_info.get("error_log"):
             messagebox.showinfo("No Logs", "No error logs available for this file.")
             return
 
@@ -1078,19 +1117,25 @@ class DefaceApp(DefaceAppBase):
 
         output_path = Path(output_dir)
         if not output_path.exists():
-            messagebox.showerror("Error", f"Output directory does not exist: {output_dir}")
+            messagebox.showerror(
+                "Error", f"Output directory does not exist: {output_dir}"
+            )
             return
 
         if not output_path.is_dir():
-            messagebox.showerror("Error", f"Output path is not a directory: {output_dir}")
+            messagebox.showerror(
+                "Error", f"Output path is not a directory: {output_dir}"
+            )
             return
 
         # Check if there are any files to process
-        files_to_process = [f for f in self.file_queue if f['status'] in ('pending', 'failed')]
+        files_to_process = [
+            f for f in self.file_queue if f["status"] in ("pending", "failed")
+        ]
         if not files_to_process:
             messagebox.showinfo(
                 "Nothing to Process",
-                "All files have been processed successfully. Add new files or clear successful files to process again."
+                "All files have been processed successfully. Add new files or clear successful files to process again.",
             )
             return
 
@@ -1105,9 +1150,7 @@ class DefaceApp(DefaceAppBase):
         logger.info(f"Starting batch processing of {len(files_to_process)} file(s)")
 
         # Start processing thread
-        self.process_thread = threading.Thread(
-            target=self._process_queue, daemon=True
-        )
+        self.process_thread = threading.Thread(target=self._process_queue, daemon=True)
         self.process_thread.start()
 
     def _stop_processing(self):
@@ -1131,10 +1174,10 @@ class DefaceApp(DefaceAppBase):
 
                 # Mark file as failed
                 for file_info in self.file_queue:
-                    if file_info['path'] == file_path:
-                        file_info['status'] = 'failed'
-                        file_info['error_log'] = 'Processing stopped by user'
-                        file_info['progress'] = 0.0
+                    if file_info["path"] == file_path:
+                        file_info["status"] = "failed"
+                        file_info["error_log"] = "Processing stopped by user"
+                        file_info["progress"] = 0.0
                         self.output_queue.put(("file_update", file_path))
                         break
 
@@ -1144,21 +1187,27 @@ class DefaceApp(DefaceAppBase):
     def _process_queue(self):
         """Process files from the queue with concurrent batch processing."""
         try:
-            batch_size = self.config.get('batch_size', 1)
+            batch_size = self.config.get("batch_size", 1)
             logger.info(f"Starting batch processing with batch size: {batch_size}")
 
             # Get list of files to process
-            files_to_process = [f for f in self.file_queue if f['status'] in ('pending', 'failed')]
+            files_to_process = [
+                f for f in self.file_queue if f["status"] in ("pending", "failed")
+            ]
 
             # Track active processing threads
-            active_threads = {}
+            active_threads: dict[str, threading.Thread] = {}
 
             # Process files
             while not self.stop_requested and (files_to_process or active_threads):
                 # Start new processes up to batch_size
-                while len(active_threads) < batch_size and files_to_process and not self.stop_requested:
+                while (
+                    len(active_threads) < batch_size
+                    and files_to_process
+                    and not self.stop_requested
+                ):
                     file_info = files_to_process.pop(0)
-                    file_path = file_info['path']
+                    file_path = file_info["path"]
 
                     # Start processing thread for this file
                     thread = threading.Thread(
@@ -1201,16 +1250,16 @@ class DefaceApp(DefaceAppBase):
         Args:
             file_info: Dictionary containing file information.
         """
-        file_path = file_info['path']
-        output_path = file_info['output_path']
+        file_path = file_info["path"]
+        output_path = file_info["output_path"]
 
         logger.info(f"Processing file: {file_path}")
 
         # Update status to processing
-        file_info['status'] = 'processing'
-        file_info['progress'] = 0.0
-        file_info['error_log'] = ''
-        file_info['parser'] = ProgressParser()  # Reset progress parser for this file
+        file_info["status"] = "processing"
+        file_info["progress"] = 0.0
+        file_info["error_log"] = ""
+        file_info["parser"] = ProgressParser()  # Reset progress parser for this file
         self.output_queue.put(("file_update", file_path))
 
         try:
@@ -1220,10 +1269,14 @@ class DefaceApp(DefaceAppBase):
 
             # Start threads to read stdout and stderr concurrently
             stdout_thread = threading.Thread(
-                target=self._read_stream, args=(proc.stdout, "stdout", file_path), daemon=True
+                target=self._read_stream,
+                args=(proc.stdout, "stdout", file_path),
+                daemon=True,
             )
             stderr_thread = threading.Thread(
-                target=self._read_stream, args=(proc.stderr, "stderr", file_path), daemon=True
+                target=self._read_stream,
+                args=(proc.stderr, "stderr", file_path),
+                daemon=True,
             )
 
             stdout_thread.start()
@@ -1238,22 +1291,24 @@ class DefaceApp(DefaceAppBase):
 
             # Update file status based on return code
             if return_code == 0:
-                file_info['status'] = 'success'
-                file_info['progress'] = 1.0
+                file_info["status"] = "success"
+                file_info["progress"] = 1.0
                 logger.info(f"Successfully processed: {file_path}")
             else:
-                file_info['status'] = 'failed'
-                file_info['progress'] = 0.0
-                file_info['error_log'] += f"\nProcess exited with code {return_code}"
-                logger.error(f"Failed to process {file_path} (exit code: {return_code})")
+                file_info["status"] = "failed"
+                file_info["progress"] = 0.0
+                file_info["error_log"] += f"\nProcess exited with code {return_code}"
+                logger.error(
+                    f"Failed to process {file_path} (exit code: {return_code})"
+                )
 
             self.output_queue.put(("file_update", file_path))
 
         except Exception as e:
             logger.error(f"Error processing file {file_path}: {e}")
-            file_info['status'] = 'failed'
-            file_info['progress'] = 0.0
-            file_info['error_log'] += f"\nException: {str(e)}"
+            file_info["status"] = "failed"
+            file_info["progress"] = 0.0
+            file_info["error_log"] += f"\nException: {str(e)}"
             self.output_queue.put(("file_update", file_path))
             if file_path in self.currently_processing:
                 self.currently_processing.remove(file_path)
@@ -1336,7 +1391,7 @@ class DefaceApp(DefaceAppBase):
         # Find the file info
         file_info = None
         for f in self.file_queue:
-            if f['path'] == file_path:
+            if f["path"] == file_path:
                 file_info = f
                 break
 
@@ -1344,27 +1399,27 @@ class DefaceApp(DefaceAppBase):
             return
 
         # Use this file's own progress parser
-        parser = file_info.get('parser')
+        parser = file_info.get("parser")
         if not parser:
             return
 
         if parser.parse(line):
             # Update file progress
             progress_fraction = parser.get_progress_fraction()
-            file_info['progress'] = progress_fraction
+            file_info["progress"] = progress_fraction
 
             # Update progress text values
-            file_info['eta'] = parser.format_eta()
-            file_info['elapsed'] = parser.format_elapsed()
-            file_info['speed'] = parser.format_rate()
+            file_info["eta"] = parser.format_eta()
+            file_info["elapsed"] = parser.format_elapsed()
+            file_info["speed"] = parser.format_rate()
 
             # Update the individual file progress bar and stats widgets
             if file_path in self.file_widgets:
                 widgets = self.file_widgets[file_path]
-                widgets['progress_bar'].set(progress_fraction)
-                widgets['eta_label'].configure(text=file_info['eta'])
-                widgets['elapsed_label'].configure(text=file_info['elapsed'])
-                widgets['speed_label'].configure(text=file_info['speed'])
+                widgets["progress_bar"].set(progress_fraction)
+                widgets["eta_label"].configure(text=file_info["eta"])
+                widgets["elapsed_label"].configure(text=file_info["elapsed"])
+                widgets["speed_label"].configure(text=file_info["speed"])
 
     def _append_to_file_log(self, file_path: str, line: str):
         """Append a line to the error log for a file.
@@ -1375,11 +1430,11 @@ class DefaceApp(DefaceAppBase):
         """
         # Find the file info
         for file_info in self.file_queue:
-            if file_info['path'] == file_path:
+            if file_info["path"] == file_path:
                 # Only append if it looks like an error or warning
                 line_lower = line.lower()
                 if any(keyword in line_lower for keyword in ERROR_KEYWORDS):
-                    file_info['error_log'] += line
+                    file_info["error_log"] += line
                 break
 
     def _finalize_batch_processing(self):
@@ -1398,19 +1453,24 @@ class DefaceApp(DefaceAppBase):
         self.remove_files_btn.configure(state="normal")
 
         # Check if there are any failed files
-        failed_files = [f for f in self.file_queue if f['status'] == 'failed']
-        success_files = [f for f in self.file_queue if f['status'] == 'success']
+        failed_files = [f for f in self.file_queue if f["status"] == "failed"]
+        success_files = [f for f in self.file_queue if f["status"] == "success"]
 
         if failed_files:
-            logger.info(f"Batch processing completed: {len(success_files)} succeeded, {len(failed_files)} failed")
+            logger.info(
+                f"Batch processing completed: {len(success_files)} succeeded, {len(failed_files)} failed"
+            )
         else:
-            logger.info(f"Batch processing completed successfully: {len(success_files)} file(s)")
+            logger.info(
+                f"Batch processing completed successfully: {len(success_files)} file(s)"
+            )
 
     def _on_closing(self):
         """Handle window closing event."""
         if self.process_thread and self.process_thread.is_alive():
             if messagebox.askokcancel(
-                "Quit", "Processing is running. Do you want to terminate all processes and quit?"
+                "Quit",
+                "Processing is running. Do you want to terminate all processes and quit?",
             ):
                 logger.info("Terminating running processes...")
                 # Terminate all active processes
@@ -1437,19 +1497,26 @@ def main():
     log_level = getattr(logging, args.log_level.upper(), logging.INFO)
 
     # Configure handlers
-    handlers = [logging.StreamHandler(sys.stderr)]
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stderr)]
 
     # Add file handler if log file is specified
     if args.log_file:
         try:
-            file_handler = logging.FileHandler(args.log_file, mode='a', encoding='utf-8')
+            file_handler = logging.FileHandler(
+                args.log_file, mode="a", encoding="utf-8"
+            )
             file_handler.setFormatter(
-                logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+                logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
             )
             handlers.append(file_handler)
             logger.info(f"Logging to file: {args.log_file}")
         except Exception as e:
-            print(f"Warning: Could not create log file {args.log_file}: {e}", file=sys.stderr)
+            print(
+                f"Warning: Could not create log file {args.log_file}: {e}",
+                file=sys.stderr,
+            )
 
     # Update root logger with new handlers
     root_logger = logging.getLogger()
