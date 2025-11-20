@@ -134,5 +134,11 @@ def get_default_config() -> Dict[str, Any]:
             "batch_size": 1,
         },
         "output_directory": None,  # Will default to Desktop on first run
+        "face_smudge_config": {
+            "blur_radius": 50,
+            "blur_sigma": 25,
+            "cache_size": 100,
+            "playback_speed": 1.0,
+        },
     }
 

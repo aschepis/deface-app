@@ -31,6 +31,9 @@ classifiers = [
 dependencies = [
     "customtkinter>=5.2.0",
     "deface>=1.0.0",
+    "opencv-python>=4.5.0",
+    "numpy>=1.19.0",
+    "Pillow>=8.0.0",
 ]
 
 [project.optional-dependencies]

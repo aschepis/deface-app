@@ -569,6 +569,15 @@ class DefaceApp(DefaceAppBase):
         )
         settings_btn.pack(side="left", padx=10)
 
+        face_smudge_btn = ctk.CTkButton(
+            self.button_frame,
+            text="Face Smudge",
+            command=self._open_face_smudge,
+            width=120,
+            height=40,
+        )
+        face_smudge_btn.pack(side="left", padx=10)
+
         quit_btn = ctk.CTkButton(
             self.button_frame,
             text="Quit",
@@ -1078,6 +1087,25 @@ class DefaceApp(DefaceAppBase):
             self.config = dialog.result
             logger.info(f"Configuration updated: {self.config}")
             self._save_config()
+
+    def _open_face_smudge(self):
+        """Open the Face Smudge window."""
+        try:
+            from face_smudge import FaceSmudgeWindow
+
+            smudge_window = FaceSmudgeWindow(self)
+            smudge_window.wait_window()  # Modal
+        except ImportError as e:
+            logger.error(f"Could not import face_smudge module: {e}")
+            messagebox.showerror(
+                "Error",
+                "Face Smudge feature is not available.\n\n"
+                "Please ensure all dependencies are installed:\n"
+                "  pip install opencv-python numpy Pillow",
+            )
+        except Exception as e:
+            logger.error(f"Error opening Face Smudge window: {e}")
+            messagebox.showerror("Error", f"Could not open Face Smudge window:\n{str(e)}")
 
     def _bring_to_front(self):
         """Bring the window to the foreground and give it focus."""
