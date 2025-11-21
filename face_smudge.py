@@ -274,8 +274,23 @@ class FrameCache:
                 del self.cache[first_key]
             return
 
-        # Find least recently used frame
-        lru_frame = min(self.access_times.items(), key=lambda x: x[1])[0]
+        # Find least recently used frame that is actually in cache
+        # Filter access_times to only include frames in cache
+        valid_access_times = {
+            frame: time for frame, time in self.access_times.items()
+            if frame in self.cache
+        }
+        
+        if not valid_access_times:
+            # Fallback: remove first entry if no valid access times
+            if self.cache:
+                first_key = next(iter(self.cache))
+                del self.cache[first_key]
+                if first_key in self.access_times:
+                    del self.access_times[first_key]
+            return
+
+        lru_frame = min(valid_access_times.items(), key=lambda x: x[1])[0]
         del self.cache[lru_frame]
         del self.access_times[lru_frame]
 
