@@ -48,17 +48,19 @@ class HomeView(BaseView):
     def create_widgets(self):
         """Create and layout all GUI widgets."""
         # Main container with rounded border appearance
-        main_frame = ctk.CTkFrame(self, corner_radius=15)
+        main_frame = ctk.CTkFrame(self, corner_radius=15, border_width=0)
         main_frame.pack(fill="both", expand=True)
 
         # Title section
-        title_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        title_frame = ctk.CTkFrame(main_frame, fg_color="transparent", border_width=0)
         title_frame.pack(pady=(30, 10))
 
-        # Title "Sightline"
+        # Title "SIGHTLINE" - Brand guidelines: all caps with letter-spacing 0.3em
+        # CustomTkinter doesn't support letter-spacing directly, so we use spaces between letters
+        # Note: Weight "bold" (700) is used as CustomTkinter doesn't support 500-600 weights
         title_label = ctk.CTkLabel(
             title_frame,
-            text="Sightline",
+            text="S I G H T L I N E",
             font=ctk.CTkFont(size=36, weight="bold"),
         )
         title_label.pack()
@@ -74,23 +76,24 @@ class HomeView(BaseView):
         underline2.pack(fill="x", padx=50, pady=(2, 0))
 
         # Container for heading and buttons (grouped together, doesn't expand)
-        content_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        content_frame = ctk.CTkFrame(main_frame, fg_color="transparent", border_width=0)
         content_frame.pack(pady=(40, 0))
 
-        # "Choose a Task" heading
+        # "Choose a Task" heading - Brand guidelines: weight 500-600 for headlines
+        # Note: Using "bold" as CustomTkinter doesn't support numeric weights (500-600)
         task_heading = ctk.CTkLabel(
             content_frame,
             text="Choose a Task",
-            font=ctk.CTkFont(size=24, weight="normal"),
+            font=ctk.CTkFont(size=24, weight="bold"),
         )
         task_heading.pack(pady=(0, 30))
 
         # Task buttons container (centered)
-        buttons_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        buttons_frame = ctk.CTkFrame(content_frame, fg_color="transparent", border_width=0)
         buttons_frame.pack(pady=(0, 20), padx=40)
 
         # Inner container to center the buttons horizontally
-        buttons_inner = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        buttons_inner = ctk.CTkFrame(buttons_frame, fg_color="transparent", border_width=0)
         buttons_inner.pack()
 
         # Three task buttons in a row - square and fixed size
@@ -105,6 +108,7 @@ class HomeView(BaseView):
         smudge_icon = ctk.CTkImage(
             light_image=Image.open(get_resource_path("flaticons/png/001-paint-brush.png")),
             dark_image=Image.open(get_resource_path("flaticons/png/001-paint-brush.png")),
+            size=(60, 60)
         )
         transcribe_icon = ctk.CTkImage(
             light_image=Image.open(get_resource_path("flaticons/png/007-speech-to-text.png")),
@@ -120,13 +124,13 @@ class HomeView(BaseView):
         buttons_inner.grid_columnconfigure(4, weight=1)
 
         # Deface button - wrapped in fixed-size frame
-        deface_frame = ctk.CTkFrame(buttons_inner, fg_color="transparent", width=button_size, height=button_size)
+        deface_frame = ctk.CTkFrame(buttons_inner, fg_color="transparent", width=button_size, height=button_size, border_width=0)
         deface_frame.grid(row=0, column=1, padx=15)
         deface_frame.grid_propagate(False)  # Prevent frame from resizing
         deface_button = ctk.CTkButton(
             deface_frame,
             text="Blur Faces",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),  # Note: Using bold as CustomTkinter doesn't support 500-600 weights
             width=button_size,
             height=button_size,
             corner_radius=15,
@@ -137,13 +141,13 @@ class HomeView(BaseView):
         deface_button.pack(fill="both", expand=True)
 
         # Smudge button - wrapped in fixed-size frame
-        smudge_frame = ctk.CTkFrame(buttons_inner, fg_color="transparent", width=button_size, height=button_size)
+        smudge_frame = ctk.CTkFrame(buttons_inner, fg_color="transparent", width=button_size, height=button_size, border_width=0)
         smudge_frame.grid(row=0, column=2, padx=15)
         smudge_frame.grid_propagate(False)  # Prevent frame from resizing
         smudge_button = ctk.CTkButton(
             smudge_frame,
             text="Manual Smudge",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),  # Note: Using bold as CustomTkinter doesn't support 500-600 weights
             width=button_size,
             height=button_size,
             corner_radius=15,
@@ -154,13 +158,13 @@ class HomeView(BaseView):
         smudge_button.pack(fill="both", expand=True)
 
         # Transcribe button - wrapped in fixed-size frame
-        transcribe_frame = ctk.CTkFrame(buttons_inner, fg_color="transparent", width=button_size, height=button_size)
+        transcribe_frame = ctk.CTkFrame(buttons_inner, fg_color="transparent", width=button_size, height=button_size, border_width=0)
         transcribe_frame.grid(row=0, column=3, padx=15)
         transcribe_frame.grid_propagate(False)  # Prevent frame from resizing
         transcribe_button = ctk.CTkButton(
             transcribe_frame,
             text="Transcribe Audio",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),  # Note: Using bold as CustomTkinter doesn't support 500-600 weights
             width=button_size,
             height=button_size,
             corner_radius=15,
