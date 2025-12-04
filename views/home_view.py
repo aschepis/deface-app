@@ -101,18 +101,18 @@ class HomeView(BaseView):
 
         # Load icons from flaticon for buttons
         deface_icon = ctk.CTkImage(
-            light_image=Image.open(get_resource_path("flaticons/png/002-blind.png")),
-            dark_image=Image.open(get_resource_path("flaticons/png/002-blind.png")),
+            light_image=Image.open(get_resource_path("flaticons/png/002-blind-white.png")),
+            dark_image=Image.open(get_resource_path("flaticons/png/002-blind-white.png")),
             size=(60, 60)
         )
         smudge_icon = ctk.CTkImage(
-            light_image=Image.open(get_resource_path("flaticons/png/001-paint-brush.png")),
-            dark_image=Image.open(get_resource_path("flaticons/png/001-paint-brush.png")),
+            light_image=Image.open(get_resource_path("flaticons/png/001-paint-brush-white.png")),
+            dark_image=Image.open(get_resource_path("flaticons/png/001-paint-brush-white.png")),
             size=(60, 60)
         )
         transcribe_icon = ctk.CTkImage(
-            light_image=Image.open(get_resource_path("flaticons/png/007-speech-to-text.png")),
-            dark_image=Image.open(get_resource_path("flaticons/png/007-speech-to-text.png")),
+            light_image=Image.open(get_resource_path("flaticons/png/007-speech-to-text-white.png")),
+            dark_image=Image.open(get_resource_path("flaticons/png/007-speech-to-text-white.png")),
             size=(60, 60)
         )
 
@@ -226,7 +226,7 @@ class HomeView(BaseView):
     def _on_settings_clicked(self):
         """Handle Settings button click - open settings dialog."""
         try:
-            from dialogs import ConfigDialog
+            from views.dialogs import ConfigDialog
             dialog = ConfigDialog(self.app, self.app.config)
             self.app.wait_window(dialog)
 
@@ -241,7 +241,7 @@ class HomeView(BaseView):
     def _on_info_clicked(self):
         """Handle Info button click - open info and attribution dialog."""
         try:
-            from dialogs import InfoDialog
+            from views.dialogs import InfoDialog
             dialog = InfoDialog(self.app)
             self.app.wait_window(dialog)
         except Exception as e:

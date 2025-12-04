@@ -24,7 +24,7 @@ try:
 except ImportError:
     raise ImportError("tkinterdnd2 is required for drag and drop support")
 
-from dialogs import ConfigDialog, LogDialog
+from views.dialogs import ConfigDialog, LogDialog
 from progress_parser import ProgressParser
 from views.base_view import BaseView
 

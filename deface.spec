@@ -72,7 +72,7 @@ a = Analysis(
     hiddenimports=[
         "deface",
         "skimage._shared.geometry",
-        "dialogs",
+        "views.dialogs",
         "config_manager",
         "progress_parser",
         "tkinter",

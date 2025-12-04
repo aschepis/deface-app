@@ -44,7 +44,7 @@ except ImportError:
     sys.exit(1)
 
 from config_manager import get_default_config, load_config, save_config
-from dialogs import ConfigDialog, LogDialog
+from views.dialogs import ConfigDialog, LogDialog
 from progress_parser import ProgressParser
 from views import BatchProcessingView, HomeView
 from views.base_view import BaseView
