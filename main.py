@@ -46,7 +46,7 @@ except ImportError:
 from config_manager import get_default_config, load_config, save_config
 from dialogs import ConfigDialog, LogDialog
 from progress_parser import ProgressParser
-from views import BatchProcessingView
+from views import BatchProcessingView, HomeView
 from views.base_view import BaseView
 
 # Version information
@@ -388,7 +388,7 @@ class DefaceApp(ctk.CTk, TkinterDnD.Tk):
             traceback.print_exc()
             sys.exit(1)
 
-        self.title(f"Deface — Batch Processing v{__version__}")
+        self.title(f"Sightline v{__version__}")
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
 
         self.icon_image = None
@@ -429,8 +429,8 @@ class DefaceApp(ctk.CTk, TkinterDnD.Tk):
         # Initialize views
         self._initialize_views()
 
-        # Show initial view (batch processing)
-        self.show_view("batch_processing")
+        # Show initial view (home)
+        self.show_view("home")
 
         self._bring_to_front()
 
@@ -438,6 +438,7 @@ class DefaceApp(ctk.CTk, TkinterDnD.Tk):
         """Initialize all application views."""
         # Create batch processing view
         self.views["batch_processing"] = BatchProcessingView(self, self)
+        self.views["home"] = HomeView(self, self)
 
     def show_view(self, view_name: str):
         """Show a specific view by name.
