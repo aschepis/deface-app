@@ -123,6 +123,8 @@ def parse_args():
 
 
 # Set customtkinter appearance mode and color theme
+# "System" mode automatically adapts to the OS theme (light/dark on macOS, Windows, etc.)
+# This ensures native appearance on all platforms without platform-specific code
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
