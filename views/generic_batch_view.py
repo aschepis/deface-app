@@ -1,6 +1,7 @@
-"""Batch processing view for the Deface application.
+"""Generic batch processing view for the Deface application.
 
-This module contains the UI and logic for batch processing files with deface.
+This module provides a reusable base class for batch processing files with
+configurable processing logic, file types, and UI elements.
 """
 
 import logging
@@ -10,9 +11,10 @@ import subprocess
 import threading
 import time
 import tkinter as tk
+from abc import ABC, abstractmethod
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 try:
     import customtkinter as ctk
@@ -24,7 +26,7 @@ try:
 except ImportError:
     raise ImportError("tkinterdnd2 is required for drag and drop support")
 
-from views.dialogs import ConfigDialog, LogDialog
+from views.dialogs import LogDialog
 from progress_parser import ProgressParser
 from views.base_view import BaseView
 
@@ -34,19 +36,6 @@ logger = logging.getLogger(__name__)
 FILE_LIST_HEIGHT = 300
 MAX_FILENAME_DISPLAY_LENGTH = 35
 PROGRESS_CHECK_INTERVAL_MS = 50
-
-# Supported file extensions
-SUPPORTED_EXTENSIONS = {
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".bmp",
-    ".tiff",
-    ".mp4",
-    ".avi",
-    ".mov",
-    ".mkv",
-}
 
 # Status colors for file processing - Sightline brand colors
 STATUS_COLORS = {
@@ -60,17 +49,37 @@ STATUS_COLORS = {
 ERROR_KEYWORDS = ["error", "warning", "exception", "failed", "traceback"]
 
 
-class BatchProcessingView(BaseView):
-    """View for batch processing files with deface."""
+class GenericBatchView(BaseView, ABC):
+    """Generic base view for batch processing files.
 
-    def __init__(self, parent: ctk.CTk, app: Any):
-        """Initialize the batch processing view.
+    This class provides common UI and logic for batch processing, with
+    configurable processing logic, file types, and custom widgets.
+    """
+
+    def __init__(
+        self,
+        parent: ctk.CTk,
+        app: Any,
+        page_title: str,
+        supported_extensions: Set[str],
+        generate_output_filename: Optional[Callable[[str], str]] = None,
+    ):
+        """Initialize the generic batch processing view.
 
         Args:
             parent: The parent widget (main application window).
             app: Reference to the main application instance.
+            page_title: Title to display at the top of the page.
+            supported_extensions: Set of valid file extensions (e.g., {".mp4", ".mp3"}).
+            generate_output_filename: Optional function to generate output filename from input path.
+                                     If None, uses default pattern: {name}_processed{ext}
         """
         super().__init__(parent, app)
+
+        # Configuration
+        self.page_title = page_title
+        self.supported_extensions = supported_extensions
+        self.generate_output_filename = generate_output_filename or self._default_output_filename
 
         # File queue for batch processing
         self.file_queue: List[Dict[str, Any]] = []
@@ -86,11 +95,25 @@ class BatchProcessingView(BaseView):
         # Create widgets
         self.create_widgets()
 
-        # Setup drag and drop
-        self._setup_drag_drop()
+        # Drag and drop will be set up when view is shown
+        self._drop_handler = None
+        self._drag_drop_setup = False
 
         # Start checking for process output
         self._check_process_output()
+
+    def _default_output_filename(self, input_path: str) -> str:
+        """Generate default output filename from input path.
+
+        Args:
+            input_path: Path to the input file.
+
+        Returns:
+            Output filename with _processed suffix.
+        """
+        input_filename = os.path.basename(input_path)
+        name, ext = os.path.splitext(input_filename)
+        return f"{name}_processed{ext}"
 
     def create_widgets(self) -> None:
         """Create and layout all GUI widgets."""
@@ -112,15 +135,14 @@ class BatchProcessingView(BaseView):
             fg_color="transparent",
             text_color=("black", "white"),
             hover=False,
-            font=ctk.CTkFont(size=16) # Keep SF Pro/System font, remove specialized font if any
+            font=ctk.CTkFont(size=16),
         )
         back_btn.pack(side="left")
 
         # Title
-        # Use same font/style as Home View: all caps, letter spacing simulated with spaces, bold
         title_label = ctk.CTkLabel(
             header_frame,
-            text="B L U R   F A C E S",
+            text=self.page_title,
             font=ctk.CTkFont(size=36, weight="bold"),
         )
         title_label.pack(side="left", expand=True)
@@ -131,8 +153,8 @@ class BatchProcessingView(BaseView):
         # --- Main Content Area ---
         content_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
-        content_frame.grid_columnconfigure(0, weight=0) # Left sidebar
-        content_frame.grid_columnconfigure(1, weight=1) # Right list area
+        content_frame.grid_columnconfigure(0, weight=0)  # Left sidebar
+        content_frame.grid_columnconfigure(1, weight=1)  # Right list area
         content_frame.grid_rowconfigure(0, weight=1)
 
         # --- Left Column: Output Config ---
@@ -174,6 +196,9 @@ class BatchProcessingView(BaseView):
         )
         output_browse_btn.pack(side="left")
 
+        # Custom widgets hook - subclasses can add widgets here
+        self._create_custom_widgets(left_frame)
+
         # --- Right Column: File List ---
         right_frame = ctk.CTkFrame(content_frame, border_width=0)
         right_frame.grid(row=0, column=1, sticky="nsew")
@@ -210,6 +235,15 @@ class BatchProcessingView(BaseView):
         )
         self.start_stop_btn.pack()
 
+    def _create_custom_widgets(self, parent: ctk.CTkFrame) -> None:
+        """Create custom widgets in the left panel below output folder selection.
+
+        Subclasses can override this method to add custom widgets.
+
+        Args:
+            parent: The parent frame (left panel) where widgets should be added.
+        """
+        pass
 
     def _create_file_row(self, file_info: Dict[str, Any]) -> ctk.CTkFrame:
         """Create a UI row for a file in the queue.
@@ -236,8 +270,7 @@ class BatchProcessingView(BaseView):
         top_row.pack(fill="x", pady=(0, 5))
 
         # Icon (Placeholder - simple text or emoji)
-        # Using emoji as placeholder for file type icon
-        icon_char = "🎬" if filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')) else "📷"
+        icon_char = self._get_file_icon(file_path)
         icon_label = ctk.CTkLabel(top_row, text=icon_char, width=30, font=ctk.CTkFont(size=20))
         icon_label.pack(side="left")
 
@@ -257,14 +290,15 @@ class BatchProcessingView(BaseView):
         # Status (Clickable)
         status = file_info.get("status", "pending")
         color, text = STATUS_COLORS.get(status, ("gray", "Pending"))
-        if text == "Success": text = "complete" # Match mockup terminology
+        if text == "Success":
+            text = "complete"
 
         status_label = ctk.CTkLabel(
             top_row,
             text=text,
             font=ctk.CTkFont(size=12),
             text_color=("black", "white"),
-            cursor="hand2" # Indicate clickable
+            cursor="hand2"
         )
         status_label.pack(side="right")
 
@@ -281,7 +315,6 @@ class BatchProcessingView(BaseView):
         details_row.pack(fill="x")
 
         # Duration / Remaining
-        # We'll use 'eta_label' to store this dynamic text
         eta_text = "--:--"
         if file_info.get("status") == "success":
             eta_text = f"duration: {file_info.get('elapsed', '00:00')}"
@@ -301,7 +334,7 @@ class BatchProcessingView(BaseView):
             speed_text = f"Speed {speed} it/s"
         else:
             speed_text = f"Speed {speed}"
-            
+
         speed_label = ctk.CTkLabel(
             details_row,
             text=speed_text,
@@ -319,6 +352,25 @@ class BatchProcessingView(BaseView):
         }
 
         return row_frame
+
+    def _get_file_icon(self, file_path: str) -> str:
+        """Get an icon character for a file based on its extension.
+
+        Args:
+            file_path: Path to the file.
+
+        Returns:
+            Icon character (emoji or text).
+        """
+        filename = file_path.lower()
+        if filename.endswith(('.mp4', '.avi', '.mov', '.mkv', '.webm')):
+            return "🎬"
+        elif filename.endswith(('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif')):
+            return "📷"
+        elif filename.endswith(('.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a')):
+            return "🎵"
+        else:
+            return "📄"
 
     def _update_file_row(self, file_path: str):
         """Update the UI for a specific file row based on its current state.
@@ -344,7 +396,8 @@ class BatchProcessingView(BaseView):
         progress = file_info["progress"]
 
         color, text = STATUS_COLORS.get(status, ("gray", "Unknown"))
-        if text == "Success": text = "complete"
+        if text == "Success":
+            text = "complete"
 
         # Update status text
         widgets["status_label"].configure(text=text)
@@ -368,7 +421,7 @@ class BatchProcessingView(BaseView):
         elif status == "success":
             widgets["eta_label"].configure(text=f"duration: {elapsed}")
         elif status == "failed":
-             widgets["eta_label"].configure(text="failed")
+            widgets["eta_label"].configure(text="failed")
         else:
             widgets["eta_label"].configure(text="--:--")
 
@@ -398,26 +451,6 @@ class BatchProcessingView(BaseView):
                 self._create_file_row(file_info)
                 self._update_file_row(file_info["path"])
 
-    def _add_files(self):
-        """Open file dialog to select multiple input files and add them to the queue."""
-        # Ensure we have focus before opening dialog
-        self.app.focus()
-        filenames = filedialog.askopenfilenames(
-            parent=self.app,
-            title="Select input images or videos",
-            filetypes=[
-                (
-                    "All supported",
-                    "*.jpg *.jpeg *.png *.bmp *.tiff *.mp4 *.avi *.mov *.mkv",
-                ),
-                ("Images", "*.jpg *.jpeg *.png *.bmp *.tiff"),
-                ("Videos", "*.mp4 *.avi *.mov *.mkv"),
-                ("All files", "*.*"),
-            ],
-        )
-        if filenames:
-            self._add_files_to_queue(filenames)
-
     def _add_files_to_queue(self, file_paths: Tuple[str, ...]):
         """Add multiple files to the processing queue.
 
@@ -438,9 +471,7 @@ class BatchProcessingView(BaseView):
                 continue
 
             # Generate output path
-            input_filename = os.path.basename(file_path)
-            name, ext = os.path.splitext(input_filename)
-            output_filename = f"{name}_anonymized{ext}"
+            output_filename = self.generate_output_filename(file_path)
             output_path = os.path.join(output_dir, output_filename)
 
             # Add to queue
@@ -450,7 +481,7 @@ class BatchProcessingView(BaseView):
                 "progress": 0.0,
                 "output_path": output_path,
                 "error_log": "",
-                "parser": ProgressParser(),  # Each file has its own progress parser
+                "parser": self._create_progress_parser(),  # Each file has its own progress parser
                 "eta": "--:--",
                 "elapsed": "00:00",
                 "speed": "--",
@@ -461,44 +492,32 @@ class BatchProcessingView(BaseView):
         # Refresh display
         self._refresh_file_list_display()
 
-    def _remove_files(self):
-        """Remove selected files from the queue."""
-        # Don't allow removal while processing
-        if self.is_processing:
-            messagebox.showwarning(
-                "Processing",
-                "Cannot remove files while processing. Stop the process first.",
-            )
-            return
+    def _create_progress_parser(self) -> Any:
+        """Create a progress parser instance for a file.
 
-        # Find selected files
-        files_to_remove = []
-        for file_path, widgets in self.file_widgets.items():
-            if widgets["checkbox_var"].get():
-                files_to_remove.append(file_path)
+        Subclasses can override this to provide custom progress parsing.
 
-        if not files_to_remove:
-            messagebox.showinfo("No Selection", "Please select files to remove.")
-            return
-
-        # Remove from queue
-        self.file_queue = [
-            f for f in self.file_queue if f["path"] not in files_to_remove
-        ]
-
-        logger.info(f"Removed {len(files_to_remove)} file(s) from queue")
-
-        # Refresh display
-        self._refresh_file_list_display()
+        Returns:
+            A progress parser instance (default: ProgressParser).
+        """
+        return ProgressParser()
 
     def _setup_drag_drop(self):
         """Setup drag and drop support for the file list frame."""
+        if self._drag_drop_setup:
+            return  # Already set up
+        
         try:
             # Register drop target on parent window (app)
             if hasattr(self.app, "drop_target_register"):
                 self.app.drop_target_register(DND_FILES)
 
                 def drop_handler(event):
+                    # Only process drops if this view is the current active view
+                    if not hasattr(self.app, "current_view") or self.app.current_view != self:
+                        logger.debug(f"Drop event ignored - not the active view")
+                        return "copy"
+                    
                     logger.info("Drop event triggered!")
                     try:
                         self._on_drop(event)
@@ -506,12 +525,22 @@ class BatchProcessingView(BaseView):
                         logger.error(f"Error in drop handler: {e}", exc_info=True)
                     return "copy"
 
+                self._drop_handler = drop_handler
                 if hasattr(self.app, "dnd_bind"):
                     self.app.dnd_bind("<<Drop>>", drop_handler)
+                    self._drag_drop_setup = True
                     logger.info("Drag and drop enabled on root window")
 
         except Exception as e:
             logger.error(f"Failed to setup drag and drop: {e}", exc_info=True)
+
+    def _teardown_drag_drop(self):
+        """Remove drag and drop handlers."""
+        # Note: tkinterdnd2 doesn't have a clean unbind, but the handler
+        # will check if this view is active, so it's safe to leave it registered
+        # We just mark it as not set up so it can be re-registered if needed
+        self._drag_drop_setup = False
+        # The handler itself will ignore drops if we're not the active view
 
     def _on_drop(self, event):
         """Handle file drop event.
@@ -583,13 +612,13 @@ class BatchProcessingView(BaseView):
 
                 if path_obj.is_dir():
                     # If it's a directory, recursively find all valid files
-                    for ext in SUPPORTED_EXTENSIONS:
+                    for ext in self.supported_extensions:
                         valid_files.extend(str(p) for p in path_obj.rglob(f"*{ext}"))
                         valid_files.extend(
                             str(p) for p in path_obj.rglob(f"*{ext.upper()}")
                         )
                 elif path_obj.is_file():
-                    if path_obj.suffix.lower() in SUPPORTED_EXTENSIONS:
+                    if path_obj.suffix.lower() in self.supported_extensions:
                         valid_files.append(file_path)
                     else:
                         logger.info(f"Skipping unsupported file type: {file_path}")
@@ -600,10 +629,11 @@ class BatchProcessingView(BaseView):
                 self._add_files_to_queue(tuple(valid_files))
             else:
                 logger.info("No valid files found in drop")
+                extensions_str = ", ".join(self.supported_extensions).upper()
                 messagebox.showinfo(
                     "No Valid Files",
-                    "No supported image or video files were found in the dropped items.\n\n"
-                    "Supported formats: JPG, PNG, BMP, TIFF, MP4, AVI, MOV, MKV",
+                    f"No supported files were found in the dropped items.\n\n"
+                    f"Supported formats: {extensions_str}",
                 )
 
         except Exception as e:
@@ -658,16 +688,6 @@ class BatchProcessingView(BaseView):
             self.output_entry.insert(0, folder)
             self.app._save_config()
 
-    def _open_settings(self):
-        """Open the configuration settings dialog."""
-        dialog = ConfigDialog(self.app, self.app.config)
-        self.app.wait_window(dialog)
-
-        if dialog.result is not None:
-            self.app.config = dialog.result
-            logger.info(f"Configuration updated: {self.app.config}")
-            self.app._save_config()
-
     def _go_to_home(self):
         """Navigate back to the home view, stopping any running processes if needed."""
         # Check if there are any running processes
@@ -713,10 +733,6 @@ class BatchProcessingView(BaseView):
         # Navigate to home view
         if hasattr(self.app, "show_view"):
             self.app.show_view("home")
-
-    def _open_face_smudge(self):
-        """Open the Face Smudge window."""
-        self.app._open_face_smudge()
 
     def _start_processing(self):
         """Start processing all pending/failed files in the queue."""
@@ -865,78 +881,22 @@ class BatchProcessingView(BaseView):
         finally:
             self.currently_processing.clear()
 
+    @abstractmethod
     def _process_file(self, file_info: Dict[str, Any]):
         """Process a single file.
 
+        This method must be implemented by subclasses to define how files are processed.
+
         Args:
-            file_info: Dictionary containing file information.
+            file_info: Dictionary containing file information including:
+                - path: Input file path
+                - output_path: Output file path
+                - status: Current status (will be "processing" when called)
+                - progress: Current progress (0.0 to 1.0)
+                - parser: Progress parser instance
+                - error_log: Error log string
         """
-        file_path = file_info["path"]
-        output_path = file_info["output_path"]
-
-        logger.info(f"Processing file: {file_path}")
-
-        # Update status to processing
-        file_info["status"] = "processing"
-        file_info["progress"] = 0.0
-        file_info["error_log"] = ""
-        file_info["parser"] = ProgressParser()  # Reset progress parser for this file
-        self.output_queue.put(("file_update", file_path))
-
-        try:
-            # Start the subprocess with current configuration
-            proc = self.app.run_deface(file_path, output_path, self.app.config)
-            self.active_processes[file_path] = proc
-
-            # Start threads to read stdout and stderr concurrently
-            stdout_thread = threading.Thread(
-                target=self._read_stream,
-                args=(proc.stdout, "stdout", file_path),
-                daemon=True,
-            )
-            stderr_thread = threading.Thread(
-                target=self._read_stream,
-                args=(proc.stderr, "stderr", file_path),
-                daemon=True,
-            )
-
-            stdout_thread.start()
-            stderr_thread.start()
-
-            # Wait for process to complete
-            return_code = proc.wait()
-
-            # Wait for both reading threads to finish
-            stdout_thread.join(timeout=1)
-            stderr_thread.join(timeout=1)
-
-            # Update file status based on return code
-            if return_code == 0:
-                file_info["status"] = "success"
-                file_info["progress"] = 1.0
-                logger.info(f"Successfully processed: {file_path}")
-            else:
-                file_info["status"] = "failed"
-                file_info["progress"] = 0.0
-                file_info["error_log"] += f"\nProcess exited with code {return_code}"
-                logger.error(
-                    f"Failed to process {file_path} (exit code: {return_code})"
-                )
-
-            self.output_queue.put(("file_update", file_path))
-
-        except Exception as e:
-            logger.error(f"Error processing file {file_path}: {e}")
-            file_info["status"] = "failed"
-            file_info["progress"] = 0.0
-            file_info["error_log"] += f"\nException: {str(e)}"
-            self.output_queue.put(("file_update", file_path))
-            if file_path in self.currently_processing:
-                self.currently_processing.remove(file_path)
-        finally:
-            # Clean up process tracking
-            if file_path in self.active_processes:
-                del self.active_processes[file_path]
+        pass
 
     def _read_stream(self, stream, stream_type: str, file_path: str):
         """Read from a stream (stdout or stderr) and queue output.
@@ -1082,8 +1042,23 @@ class BatchProcessingView(BaseView):
                 f"Batch processing completed successfully: {len(success_files)} file(s)"
             )
 
+    def show(self) -> None:
+        """Show this view and set up drag and drop."""
+        super().show()
+        # Set up drag and drop when view becomes active
+        self._setup_drag_drop()
+
+    def hide(self) -> None:
+        """Hide this view and tear down drag and drop."""
+        # Remove drag and drop handlers when view is hidden
+        self._teardown_drag_drop()
+        super().hide()
+
     def cleanup(self) -> None:
         """Clean up resources when the view is being removed."""
+        # Remove drag and drop handlers
+        self._teardown_drag_drop()
+        
         # Stop any ongoing processing
         if self.is_processing:
             self._stop_processing()
@@ -1096,4 +1071,3 @@ class BatchProcessingView(BaseView):
                     proc.wait(timeout=2)
                 except subprocess.TimeoutExpired:
                     proc.kill()
-

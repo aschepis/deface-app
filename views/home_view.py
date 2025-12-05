@@ -218,10 +218,9 @@ class HomeView(BaseView):
             self.app.open_face_smudge()
 
     def _on_transcribe_clicked(self):
-        """Handle Transcribe button click."""
-        # TODO: Implement transcribe functionality
-        # For now, show a placeholder message
-        messagebox.showinfo("Transcribe", "Transcribe feature coming soon!")
+        """Handle Transcribe button click - navigate to transcription view."""
+        if hasattr(self.app, "show_view"):
+            self.app.show_view("transcription")
 
     def _on_settings_clicked(self):
         """Handle Settings button click - open settings dialog."""

@@ -46,7 +46,7 @@ except ImportError:
 from config_manager import get_default_config, load_config, save_config
 from views.dialogs import ConfigDialog, LogDialog
 from progress_parser import ProgressParser
-from views import BatchProcessingView, HomeView
+from views import FaceBlurView, HomeView, TranscriptionView
 from views.base_view import BaseView
 
 # Version information
@@ -462,8 +462,9 @@ class DefaceApp(ctk.CTk, TkinterDnD.Tk):
 
     def _initialize_views(self):
         """Initialize all application views."""
-        # Create batch processing view
-        self.views["batch_processing"] = BatchProcessingView(self, self)
+        # Create views
+        self.views["batch_processing"] = FaceBlurView(self, self)
+        self.views["transcription"] = TranscriptionView(self, self)
         self.views["home"] = HomeView(self, self)
 
     def show_view(self, view_name: str):
