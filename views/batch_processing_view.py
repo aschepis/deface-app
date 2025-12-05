@@ -99,7 +99,7 @@ class BatchProcessingView(BaseView):
         self.grid_rowconfigure(1, weight=1)
 
         # --- Header Section ---
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 10))
 
         # Back button
@@ -129,14 +129,14 @@ class BatchProcessingView(BaseView):
         ctk.CTkLabel(header_frame, text="       ", width=80).pack(side="right")
 
         # --- Main Content Area ---
-        content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        content_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
         content_frame.grid_columnconfigure(0, weight=0) # Left sidebar
         content_frame.grid_columnconfigure(1, weight=1) # Right list area
         content_frame.grid_rowconfigure(0, weight=1)
 
         # --- Left Column: Output Config ---
-        left_frame = ctk.CTkFrame(content_frame, fg_color="transparent", width=300)
+        left_frame = ctk.CTkFrame(content_frame, fg_color="transparent", width=300, border_width=0)
         left_frame.grid(row=0, column=0, sticky="n", padx=(0, 20), pady=10)
 
         ctk.CTkLabel(
@@ -145,7 +145,7 @@ class BatchProcessingView(BaseView):
             font=ctk.CTkFont(size=14, weight="bold")
         ).pack(anchor="w", pady=(0, 5))
 
-        output_row = ctk.CTkFrame(left_frame, fg_color="transparent")
+        output_row = ctk.CTkFrame(left_frame, fg_color="transparent", border_width=0)
         output_row.pack(fill="x")
 
         saved_output = self.app.saved_output_directory
@@ -175,7 +175,7 @@ class BatchProcessingView(BaseView):
         output_browse_btn.pack(side="left")
 
         # --- Right Column: File List ---
-        right_frame = ctk.CTkFrame(content_frame)
+        right_frame = ctk.CTkFrame(content_frame, border_width=0)
         right_frame.grid(row=0, column=1, sticky="nsew")
 
         # Scrollable list
