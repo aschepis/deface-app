@@ -71,7 +71,7 @@ test:
 	$(CONDA_RUN) pytest tests/ -v
 
 run:
-	$(CONDA_RUN) python main.py
+	$(CONDA_RUN) python main.py --log-file=sightline.log
 
 ### CODE QUALITY ###############################################################
 

@@ -55,7 +55,7 @@ class LogDialog(ctk.CTkToplevel):
 
     def _create_widgets(self, log_text: str):
         """Create and layout all dialog widgets."""
-        main_frame = ctk.CTkFrame(self)
+        main_frame = ctk.CTkFrame(self, border_width=0, fg_color="transparent")
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
         title_label = ctk.CTkLabel(
@@ -74,7 +74,7 @@ class LogDialog(ctk.CTkToplevel):
         log_textbox.insert("1.0", log_text)
         log_textbox.configure(state="disabled")
 
-        button_frame = ctk.CTkFrame(main_frame)
+        button_frame = ctk.CTkFrame(main_frame, border_width=0, fg_color="transparent")
         button_frame.pack(fill="x")
 
         close_btn = ctk.CTkButton(

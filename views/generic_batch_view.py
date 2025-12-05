@@ -15,16 +15,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from tkinter import filedialog, messagebox
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
-
-try:
-    import customtkinter as ctk
-except ImportError:
-    raise ImportError("customtkinter is required for views")
-
-try:
-    from tkinterdnd2 import DND_FILES, TkinterDnD
-except ImportError:
-    raise ImportError("tkinterdnd2 is required for drag and drop support")
+import customtkinter as ctk
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from views.dialogs import LogDialog
 from progress_parser import ProgressParser
@@ -47,7 +39,6 @@ STATUS_COLORS = {
 
 # Keywords for error detection in logs
 ERROR_KEYWORDS = ["error", "warning", "exception", "failed", "traceback"]
-
 
 class GenericBatchView(BaseView, ABC):
     """Generic base view for batch processing files.
@@ -200,7 +191,7 @@ class GenericBatchView(BaseView, ABC):
         self._create_custom_widgets(left_frame)
 
         # --- Right Column: File List ---
-        right_frame = ctk.CTkFrame(content_frame, border_width=0)
+        right_frame = ctk.CTkFrame(content_frame, fg_color="transparent", border_width=0)
         right_frame.grid(row=0, column=1, sticky="nsew")
 
         # Scrollable list

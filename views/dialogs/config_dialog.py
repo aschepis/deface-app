@@ -34,11 +34,11 @@ class ConfigDialog(ctk.CTkToplevel):
 
     MAX_BATCH_SIZE = 8
 
-    def __init__(self, parent, config: Dict[str, Any]):
+    def __init__(self, parent, config: Dict[str, Any], full_config: Optional[Dict[str, Any]] = None):
         super().__init__(parent)
 
         self.title("Deface Configuration")
-        self.geometry("600x650")
+        self.geometry("600x700")
         self.resizable(False, False)
 
         # Make dialog modal
@@ -47,7 +47,9 @@ class ConfigDialog(ctk.CTkToplevel):
 
         # Store configuration
         self.config = config.copy()
+        self.full_config = full_config or {}
         self.result: Optional[Dict[str, Any]] = None
+        self.hugging_face_token: str = ""
 
         # Create widgets
         self._create_widgets()
@@ -77,18 +79,21 @@ class ConfigDialog(ctk.CTkToplevel):
 
     def _create_widgets(self):
         """Create and layout all dialog widgets."""
-        main_frame = ctk.CTkFrame(self)
+        main_frame = ctk.CTkFrame(self, border_width=0)
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
         title_label = ctk.CTkLabel(
             main_frame,
-            text="Deface Configuration",
+            text="Sightline Configuration",
             font=ctk.CTkFont(size=20, weight="bold"),
         )
         title_label.pack(pady=(0, 20))
 
         scrollable_frame = ctk.CTkScrollableFrame(main_frame)
         scrollable_frame.pack(fill="both", expand=True, pady=(0, 20))
+
+
+        self._create_section_header(scrollable_frame, "Face Blur Settings")
 
         # Detection threshold
         self._create_threshold_section(scrollable_frame)
@@ -110,6 +115,13 @@ class ConfigDialog(ctk.CTkToplevel):
 
         # Keep metadata
         self._create_metadata_section(scrollable_frame)
+
+        self._create_section_header(scrollable_frame, "Transcription Settings")
+
+        # Hugging Face token
+        self._create_hugging_face_token_section(scrollable_frame)
+
+        self._create_section_header(scrollable_frame, "Batch Processing Settings")
 
         # Batch size
         self._create_batch_size_section(scrollable_frame)
@@ -293,9 +305,31 @@ class ConfigDialog(ctk.CTkToplevel):
         self.batch_size_entry.insert(0, str(self.config.get("batch_size", 1)))
         self.batch_size_entry.pack(anchor="w", padx=10, pady=(0, 10))
 
+    def _create_hugging_face_token_section(self, parent):
+        """Create Hugging Face token configuration section."""
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="x", pady=5, padx=10)
+
+        ctk.CTkLabel(
+            frame, text="Hugging Face Token:", font=ctk.CTkFont(size=12)
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+
+        ctk.CTkLabel(
+            frame,
+            text="Token for accessing Hugging Face models (required for transcription features)",
+            font=ctk.CTkFont(size=10),
+            text_color="#8ea4c7",  # Mist Blue
+        ).pack(anchor="w", padx=10, pady=(0, 5))
+
+        self.hf_token_entry = ctk.CTkEntry(frame, width=400)
+        current_token = self.full_config.get("hugging_face_token", "")
+        if current_token:
+            self.hf_token_entry.insert(0, current_token)
+        self.hf_token_entry.pack(anchor="w", padx=10, pady=(0, 10))
+
     def _create_button_section(self, parent):
         """Create dialog button section."""
-        button_frame = ctk.CTkFrame(parent)
+        button_frame = ctk.CTkFrame(parent, border_width=0, fg_color="transparent")
         button_frame.pack(fill="x", pady=(0, 0))
 
         ok_btn = ctk.CTkButton(button_frame, text="OK", command=self._on_ok, width=100)
@@ -433,6 +467,9 @@ class ConfigDialog(ctk.CTkToplevel):
                 return
             config["batch_size"] = batch_size
 
+            # Store Hugging Face token separately (it's not part of deface_config)
+            self.hugging_face_token = self.hf_token_entry.get().strip()
+
             self.result = config
             self.destroy()
 
@@ -445,3 +482,7 @@ class ConfigDialog(ctk.CTkToplevel):
         self.result = None
         self.destroy()
 
+    def _create_section_header(self, parent, text):
+        """Create a section header."""
+        header = ctk.CTkLabel(parent, text=text, font=ctk.CTkFont(size=16, weight="bold"))
+        header.pack(anchor="w", padx=10, pady=(0, 10))

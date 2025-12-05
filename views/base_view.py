@@ -30,7 +30,7 @@ class BaseView(ctk.CTkFrame, ABC):
             parent: The parent widget (typically the main application window).
             app: Reference to the main application instance for accessing shared state.
         """
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent")
         self.app = app
         self.parent = parent
 

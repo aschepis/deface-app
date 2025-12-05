@@ -69,11 +69,11 @@ class HomeView(BaseView):
         underline1 = ctk.CTkFrame(
             title_frame, height=2, fg_color="#00a6ff"
         )
-        underline1.pack(fill="x", padx=50, pady=(5, 0))
+        underline1.pack(fill="x", padx=0, pady=(5, 0))
         underline2 = ctk.CTkFrame(
             title_frame, height=2, fg_color="#00a6ff"
         )
-        underline2.pack(fill="x", padx=50, pady=(2, 0))
+        underline2.pack(fill="x", padx=0, pady=(2, 0))
 
         # Container for heading and buttons (grouped together, doesn't expand)
         content_frame = ctk.CTkFrame(main_frame, fg_color="transparent", border_width=0)
@@ -226,11 +226,14 @@ class HomeView(BaseView):
         """Handle Settings button click - open settings dialog."""
         try:
             from views.dialogs import ConfigDialog
-            dialog = ConfigDialog(self.app, self.app.config)
+            dialog = ConfigDialog(self.app, self.app.config, self.app.full_config)
             self.app.wait_window(dialog)
 
             if dialog.result is not None:
                 self.app.config = dialog.result
+                # Update Hugging Face token if it was changed
+                if hasattr(dialog, 'hugging_face_token'):
+                    self.app.full_config["hugging_face_token"] = dialog.hugging_face_token
                 if hasattr(self.app, "_save_config"):
                     self.app._save_config()
         except Exception as e:

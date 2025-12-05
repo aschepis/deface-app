@@ -116,6 +116,43 @@ def save_config(config: Dict[str, Any]) -> bool:
         return False
 
 
+def get_models_path() -> Path:
+    """Get the path where transcription models should be stored.
+
+    Uses platform-appropriate storage:
+    - macOS: ~/Library/Application Support/deface-app/models
+    - Windows: %APPDATA%/deface-app/models
+    - Linux: ~/.config/deface-app/models
+
+    Returns:
+        Path to the models directory.
+    """
+    home = Path.home()
+
+    # Use platform-specific paths
+    if sys.platform == "darwin":  # macOS
+        models_dir = home / "Library" / "Application Support" / "deface-app" / "models"
+    elif sys.platform == "win32":  # Windows
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            models_dir = Path(appdata) / "deface-app" / "models"
+        else:
+            models_dir = home / ".deface-app" / "models"
+    else:  # Linux and other Unix-like systems
+        models_dir = home / ".config" / "deface-app" / "models"
+
+    # Create directory if it doesn't exist
+    try:
+        models_dir.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError) as e:
+        logger.warning(f"Could not create models directory {models_dir}: {e}")
+        # Fallback to home directory
+        models_dir = home / ".deface-app" / "models"
+        models_dir.mkdir(parents=True, exist_ok=True)
+
+    return models_dir
+
+
 def get_default_config() -> Dict[str, Any]:
     """Get default configuration values.
 
@@ -133,6 +170,7 @@ def get_default_config() -> Dict[str, Any]:
             "keep_metadata": True,
             "batch_size": 1,
         },
+        "hugging_face_token": "",
         "output_directory": None,  # Will default to Desktop on first run
         "face_smudge_config": {
             "blur_radius": 50,

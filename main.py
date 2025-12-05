@@ -88,12 +88,7 @@ STATUS_COLORS = {
 # Keywords for error detection in logs
 ERROR_KEYWORDS = ["error", "warning", "exception", "failed", "traceback"]
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stderr)],  # Ensure logs go to stderr
-)
+# Logger will be configured in main()
 logger = logging.getLogger(__name__)
 
 
@@ -447,6 +442,8 @@ class DefaceApp(ctk.CTk, TkinterDnD.Tk):
             "deface_config", default_config["deface_config"]
         ).copy()
         self.saved_output_directory = saved_config.get("output_directory")
+        # Store full config for access to other settings like hugging_face_token
+        self.full_config = saved_config
 
         # View management
         self.current_view: Optional[BaseView] = None
@@ -526,13 +523,18 @@ class DefaceApp(ctk.CTk, TkinterDnD.Tk):
         if self.current_view and hasattr(self.current_view, "output_entry"):
             output_dir = self.current_view.output_entry.get().strip() or None
 
+        default_config = get_default_config()
         config_to_save = {
             "deface_config": self.config,
             "output_directory": output_dir or self.saved_output_directory,
+            "hugging_face_token": self.full_config.get("hugging_face_token", ""),
+            "face_smudge_config": self.full_config.get("face_smudge_config", default_config.get("face_smudge_config", {})),
         }
         save_config(config_to_save)
         if output_dir:
             self.saved_output_directory = output_dir
+        # Update full_config
+        self.full_config = config_to_save
 
     def _open_face_smudge(self):
         """Open the Face Smudge window."""
@@ -604,6 +606,10 @@ def main():
     # Update logging level based on command-line argument
     log_level = getattr(logging, args.log_level.upper(), logging.INFO)
 
+    # Get root logger and clear any existing handlers
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+
     # Configure handlers
     handlers: list[logging.Handler] = [logging.StreamHandler(sys.stderr)]
 
@@ -619,19 +625,29 @@ def main():
                 )
             )
             handlers.append(file_handler)
-            logger.info(f"Logging to file: {args.log_file}")
         except Exception as e:
             print(
                 f"Warning: Could not create log file {args.log_file}: {e}",
                 file=sys.stderr,
             )
 
-    # Update root logger with new handlers
-    root_logger = logging.getLogger()
+    # Set formatter for all handlers
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    for handler in handlers:
+        handler.setFormatter(formatter)
+
+    # Configure root logger
     root_logger.handlers = handlers
     root_logger.setLevel(log_level)
+    
+    # Ensure all loggers inherit from root logger level
     logger.setLevel(log_level)
+    
     logger.info(f"Logging level set to {args.log_level}")
+    if args.log_file:
+        logger.info(f"Logging to file: {args.log_file}")
 
     app = DefaceApp()
     try:
