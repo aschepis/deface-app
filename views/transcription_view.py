@@ -78,6 +78,21 @@ class TranscriptionView(GenericBatchView):
         # Spacer
         ctk.CTkLabel(parent, text="", height=20).pack()
 
+        warning_text = (
+            "NOTE: Progress tracking for transcription and diarization is not yet implemented."
+        )
+        ctk.CTkLabel(
+            parent,
+            text=warning_text,
+            text_color="orange",
+            font=ctk.CTkFont(size=11, slant="italic"),
+            wraplength=260,
+            justify="left"
+        ).pack(fill="x", pady=(5, 10))
+
+        ctk.CTkLabel(parent, text="", height=20).pack()
+
+
         # Models Section
         ctk.CTkLabel(
             parent,
