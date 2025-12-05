@@ -94,151 +94,122 @@ class BatchProcessingView(BaseView):
 
     def create_widgets(self) -> None:
         """Create and layout all GUI widgets."""
-        # Main container
-        main_frame = ctk.CTkFrame(self)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # Configure grid layout
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
-        # Title section with back button
-        title_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        title_frame.pack(fill="x", pady=(0, 20))
+        # --- Header Section ---
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 10))
 
-        # Back to Home button
+        # Back button
         back_btn = ctk.CTkButton(
-            title_frame,
-            text="← Back to Home",
+            header_frame,
+            text="< Back",
             command=self._go_to_home,
-            width=120,
+            width=80,
             height=30,
-            font=ctk.CTkFont(size=12),
+            fg_color="transparent",
+            text_color=("black", "white"),
+            hover=False,
+            font=ctk.CTkFont(size=16) # Keep SF Pro/System font, remove specialized font if any
         )
-        back_btn.pack(side="left", padx=(0, 10))
+        back_btn.pack(side="left")
 
         # Title
+        # Use same font/style as Home View: all caps, letter spacing simulated with spaces, bold
         title_label = ctk.CTkLabel(
-            title_frame,
-            text="Deface",
-            font=ctk.CTkFont(size=24, weight="bold"),
+            header_frame,
+            text="B L U R   F A C E S",
+            font=ctk.CTkFont(size=36, weight="bold"),
         )
-        title_label.pack(side="left")
+        title_label.pack(side="left", expand=True)
 
-        # Output directory selection
-        output_frame = ctk.CTkFrame(main_frame)
-        output_frame.pack(fill="x", pady=10)
+        # Spacer to balance center title
+        ctk.CTkLabel(header_frame, text="       ", width=80).pack(side="right")
+
+        # --- Main Content Area ---
+        content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
+        content_frame.grid_columnconfigure(0, weight=0) # Left sidebar
+        content_frame.grid_columnconfigure(1, weight=1) # Right list area
+        content_frame.grid_rowconfigure(0, weight=1)
+
+        # --- Left Column: Output Config ---
+        left_frame = ctk.CTkFrame(content_frame, fg_color="transparent", width=300)
+        left_frame.grid(row=0, column=0, sticky="n", padx=(0, 20), pady=10)
 
         ctk.CTkLabel(
-            output_frame, text="Output folder:", font=ctk.CTkFont(size=14)
-        ).pack(anchor="w", padx=10, pady=10)
+            left_frame,
+            text="Output Destination",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(anchor="w", pady=(0, 5))
 
-        output_row = ctk.CTkFrame(output_frame)
-        output_row.pack(fill="x", padx=10, pady=(0, 10))
+        output_row = ctk.CTkFrame(left_frame, fg_color="transparent")
+        output_row.pack(fill="x")
 
-        # Set default output folder from saved config or Desktop
         saved_output = self.app.saved_output_directory
         if saved_output and Path(saved_output).exists():
             default_output = saved_output
         else:
             default_output = self.app.get_desktop_path()
+
         self.output_entry = ctk.CTkEntry(
-            output_row, placeholder_text="Select output folder..."
+            output_row,
+            width=200,
+            placeholder_text="/path/to/output"
         )
         self.output_entry.insert(0, default_output)
-        self.output_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-
-        # Bind to save config when output directory changes
+        self.output_entry.pack(side="left", padx=(0, 10))
         self.output_entry.bind("<FocusOut>", self._on_output_directory_changed)
 
         output_browse_btn = ctk.CTkButton(
-            output_row, text="Browse", command=self._browse_output_folder, width=100
+            output_row,
+            text="Browse",
+            command=self._browse_output_folder,
+            width=80,
+            fg_color="transparent",
+            border_width=2,
+            text_color=("black", "white")
         )
-        output_browse_btn.pack(side="right")
+        output_browse_btn.pack(side="left")
 
-        # File list section
-        files_frame = ctk.CTkFrame(main_frame)
-        files_frame.pack(fill="both", expand=True, pady=10)
+        # --- Right Column: File List ---
+        right_frame = ctk.CTkFrame(content_frame)
+        right_frame.grid(row=0, column=1, sticky="nsew")
 
-        # Header with label and buttons
-        files_header = ctk.CTkFrame(files_frame)
-        files_header.pack(fill="x", padx=10, pady=(10, 5))
-
-        ctk.CTkLabel(
-            files_header, text="Files to process:", font=ctk.CTkFont(size=14)
-        ).pack(side="left", padx=5)
-
-        self.add_files_btn = ctk.CTkButton(
-            files_header,
-            text="Add Files",
-            command=self._add_files,
-            width=100,
-            height=30,
-        )
-        self.add_files_btn.pack(side="right", padx=5)
-
-        self.remove_files_btn = ctk.CTkButton(
-            files_header,
-            text="Remove",
-            command=self._remove_files,
-            width=100,
-            height=30,
-        )
-        self.remove_files_btn.pack(side="right", padx=5)
-
-        # Scrollable frame for file list
+        # Scrollable list
         self.files_list_frame = ctk.CTkScrollableFrame(
-            files_frame, height=FILE_LIST_HEIGHT, fg_color="transparent"
+            right_frame,
+            fg_color="transparent"
         )
-        self.files_list_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.files_list_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-        # Placeholder text when no files
+        # Placeholder
         self.no_files_label = ctk.CTkLabel(
             self.files_list_frame,
-            text="No files added. Click 'Add Files' to select files.",
-            font=ctk.CTkFont(size=12),
-            text_color="#8ea4c7",  # Mist Blue
+            text="Drag and drop files here",
+            font=ctk.CTkFont(size=16),
+            text_color="#8ea4c7",
         )
-        self.no_files_label.pack(pady=50)
+        self.no_files_label.pack(pady=100)
 
-        # Buttons
-        self.button_frame = ctk.CTkFrame(main_frame)
-        self.button_frame.pack(fill="x", pady=10)
+        # --- Bottom Controls ---
+        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        button_frame.grid(row=2, column=0, sticky="e", padx=20, pady=20)
 
-        self.start_btn = ctk.CTkButton(
-            self.button_frame,
+        self.start_stop_btn = ctk.CTkButton(
+            button_frame,
             text="Start",
             command=self._start_processing,
             width=120,
             height=40,
+            fg_color="transparent",
+            border_width=2,
+            text_color=("black", "white")
         )
-        self.start_btn.pack(side="left", padx=10)
-        self.start_btn.configure(state="disabled")  # Disabled until files are added
+        self.start_stop_btn.pack()
 
-        self.stop_btn = ctk.CTkButton(
-            self.button_frame,
-            text="Stop",
-            command=self._stop_processing,
-            width=120,
-            height=40,
-            fg_color="#ff3b30",  # Ember Red
-        )
-        self.stop_btn.pack(side="left", padx=10)
-        self.stop_btn.configure(state="disabled")
-
-        settings_btn = ctk.CTkButton(
-            self.button_frame,
-            text="Settings",
-            command=self._open_settings,
-            width=120,
-            height=40,
-        )
-        settings_btn.pack(side="left", padx=10)
-
-        face_smudge_btn = ctk.CTkButton(
-            self.button_frame,
-            text="Face Smudge",
-            command=self._open_face_smudge,
-            width=120,
-            height=40,
-        )
-        face_smudge_btn.pack(side="left", padx=10)
 
     def _create_file_row(self, file_info: Dict[str, Any]) -> ctk.CTkFrame:
         """Create a UI row for a file in the queue.
@@ -250,95 +221,101 @@ class BatchProcessingView(BaseView):
             Frame containing the file row widgets.
         """
         file_path = file_info["path"]
+        filename = os.path.basename(file_path)
 
-        # Main row frame
-        row_frame = ctk.CTkFrame(self.files_list_frame)
+        # Card Frame with border and rounded corners
+        row_frame = ctk.CTkFrame(self.files_list_frame, border_width=2, corner_radius=15)
         row_frame.pack(fill="x", pady=5, padx=5)
 
-        # Checkbox for selection
-        checkbox_var = tk.BooleanVar(value=False)
-        checkbox = ctk.CTkCheckBox(row_frame, text="", variable=checkbox_var, width=30)
-        checkbox.pack(side="left", padx=5)
+        # Inner padding frame
+        inner = ctk.CTkFrame(row_frame, fg_color="transparent")
+        inner.pack(fill="both", expand=True, padx=10, pady=5)
 
-        filename = os.path.basename(file_path)
+        # Top Row: Icon + Name + Status
+        top_row = ctk.CTkFrame(inner, fg_color="transparent")
+        top_row.pack(fill="x", pady=(0, 5))
+
+        # Icon (Placeholder - simple text or emoji)
+        # Using emoji as placeholder for file type icon
+        icon_char = "🎬" if filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')) else "📷"
+        icon_label = ctk.CTkLabel(top_row, text=icon_char, width=30, font=ctk.CTkFont(size=20))
+        icon_label.pack(side="left")
+
+        # Filename
+        display_name = filename
         if len(filename) > MAX_FILENAME_DISPLAY_LENGTH:
             display_name = filename[: MAX_FILENAME_DISPLAY_LENGTH - 3] + "..."
-        else:
-            display_name = filename
 
-        filename_label = ctk.CTkLabel(
-            row_frame,
+        name_label = ctk.CTkLabel(
+            top_row,
             text=display_name,
-            font=ctk.CTkFont(size=11),
-            width=250,
-            anchor="w",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
         )
-        filename_label.pack(side="left", padx=5)
+        name_label.pack(side="left", padx=5, fill="x", expand=True)
 
-        # Status label
+        # Status (Clickable)
+        status = file_info.get("status", "pending")
+        color, text = STATUS_COLORS.get(status, ("gray", "Pending"))
+        if text == "Success": text = "complete" # Match mockup terminology
+
         status_label = ctk.CTkLabel(
-            row_frame,
-            text="Pending",
-            font=ctk.CTkFont(size=10),
-            width=70,
-            text_color="#8ea4c7",  # Mist Blue
+            top_row,
+            text=text,
+            font=ctk.CTkFont(size=12),
+            text_color=("black", "white"),
+            cursor="hand2" # Indicate clickable
         )
-        status_label.pack(side="left", padx=5)
+        status_label.pack(side="right")
 
-        # Progress bar
-        progress_bar = ctk.CTkProgressBar(row_frame, width=150)
-        progress_bar.pack(side="left", padx=5)
-        progress_bar.set(0)
+        # Bind click to show logs
+        status_label.bind("<Button-1>", lambda e: self._show_file_logs(file_path))
 
-        # ETA label
+        # Progress Bar
+        progress_bar = ctk.CTkProgressBar(inner)
+        progress_bar.pack(fill="x", pady=(0, 5))
+        progress_bar.set(file_info.get("progress", 0.0))
+
+        # Bottom Row: Details
+        details_row = ctk.CTkFrame(inner, fg_color="transparent")
+        details_row.pack(fill="x")
+
+        # Duration / Remaining
+        # We'll use 'eta_label' to store this dynamic text
+        eta_text = "--:--"
+        if file_info.get("status") == "success":
+            eta_text = f"duration: {file_info.get('elapsed', '00:00')}"
+        elif file_info.get("status") == "processing":
+            eta_text = f"Remaining: {file_info.get('eta', '--:--')}"
+
         eta_label = ctk.CTkLabel(
-            row_frame,
-            text="--:--",
-            font=ctk.CTkFont(size=10),
-            width=50,
-            text_color="#8ea4c7",  # Mist Blue
+            details_row,
+            text=eta_text,
+            font=ctk.CTkFont(size=11),
         )
-        eta_label.pack(side="left", padx=3)
+        eta_label.pack(side="left")
 
-        # Elapsed label
-        elapsed_label = ctk.CTkLabel(
-            row_frame,
-            text="00:00",
-            font=ctk.CTkFont(size=10),
-            width=50,
-            text_color="#8ea4c7",  # Mist Blue
-        )
-        elapsed_label.pack(side="left", padx=3)
-
-        # Speed label
+        # Speed
+        speed = file_info.get("speed", "--")
+        if speed == "--":
+            speed_text = f"Speed {speed} it/s"
+        else:
+            speed_text = f"Speed {speed}"
+            
         speed_label = ctk.CTkLabel(
-            row_frame, text="--", font=ctk.CTkFont(size=10), width=60, text_color="#8ea4c7"  # Mist Blue
+            details_row,
+            text=speed_text,
+            font=ctk.CTkFont(size=11),
         )
-        speed_label.pack(side="left", padx=3)
-
-        # Show logs button (hidden by default, shown on failure)
-        show_logs_btn = ctk.CTkButton(
-            row_frame,
-            text="Logs",
-            command=lambda: self._show_file_logs(file_path),
-            width=60,
-            height=25,
-            fg_color="#00a6ff",  # Primary Accent
-        )
-        # Don't pack it yet, will show on failure
+        speed_label.pack(side="right")
 
         # Store widget references
         self.file_widgets[file_path] = {
             "row_frame": row_frame,
-            "checkbox": checkbox,
-            "checkbox_var": checkbox_var,
-            "filename_label": filename_label,
             "status_label": status_label,
             "progress_bar": progress_bar,
             "eta_label": eta_label,
-            "elapsed_label": elapsed_label,
             "speed_label": speed_label,
-            "show_logs_btn": show_logs_btn,
         }
 
         return row_frame
@@ -367,24 +344,38 @@ class BatchProcessingView(BaseView):
         progress = file_info["progress"]
 
         color, text = STATUS_COLORS.get(status, ("gray", "Unknown"))
-        widgets["status_label"].configure(text=text, text_color=color)
+        if text == "Success": text = "complete"
+
+        # Update status text
+        widgets["status_label"].configure(text=text)
         widgets["progress_bar"].set(progress)
 
-        # Update progress text values
-        widgets["eta_label"].configure(text=file_info.get("eta", "--:--"))
-        widgets["elapsed_label"].configure(text=file_info.get("elapsed", "00:00"))
-        widgets["speed_label"].configure(text=file_info.get("speed", "--"))
+        # Update progress bar color
+        if status == "success":
+            widgets["progress_bar"].configure(progress_color="#00FF9C")
+        elif status == "failed":
+            widgets["progress_bar"].configure(progress_color="#ff3b30")
+        else:
+            widgets["progress_bar"].configure(progress_color="#00a6ff")
 
-        # Disable checkbox while processing
+        # Update details
+        eta = file_info.get("eta", "--:--")
+        elapsed = file_info.get("elapsed", "00:00")
+        speed = file_info.get("speed", "--")
+
         if status == "processing":
-            widgets["checkbox"].configure(state="disabled")
+            widgets["eta_label"].configure(text=f"Remaining: {eta}")
+        elif status == "success":
+            widgets["eta_label"].configure(text=f"duration: {elapsed}")
+        elif status == "failed":
+             widgets["eta_label"].configure(text="failed")
         else:
-            widgets["checkbox"].configure(state="normal")
+            widgets["eta_label"].configure(text="--:--")
 
-        if status == "failed" and file_info.get("error_log"):
-            widgets["show_logs_btn"].pack(side="left", padx=5)
+        if speed == "--":
+            widgets["speed_label"].configure(text=f"Speed {speed} it/s")
         else:
-            widgets["show_logs_btn"].pack_forget()
+            widgets["speed_label"].configure(text=f"Speed {speed}")
 
     def _refresh_file_list_display(self):
         """Refresh the entire file list display."""
@@ -395,12 +386,12 @@ class BatchProcessingView(BaseView):
 
         # Show/hide placeholder
         if not self.file_queue:
-            self.no_files_label.pack(pady=50)
-            self.start_btn.configure(state="disabled")
+            self.no_files_label.pack(pady=100)
+            self.start_stop_btn.configure(state="disabled")
         else:
             self.no_files_label.pack_forget()
             if not self.is_processing:
-                self.start_btn.configure(state="normal")
+                self.start_stop_btn.configure(state="normal", text="Start", command=self._start_processing)
 
             # Create rows for all files
             for file_info in self.file_queue:
@@ -769,10 +760,13 @@ class BatchProcessingView(BaseView):
         # Update UI state
         self.is_processing = True
         self.stop_requested = False
-        self.start_btn.configure(state="disabled")
-        self.stop_btn.configure(state="normal")
-        self.add_files_btn.configure(state="disabled")
-        self.remove_files_btn.configure(state="disabled")
+        self.start_stop_btn.configure(
+            text="Stop",
+            command=self._stop_processing,
+            fg_color="#ff3b30",
+            text_color="white",
+            state="normal"
+        )
 
         logger.info(f"Starting batch processing of {len(files_to_process)} file(s)")
 
@@ -809,7 +803,7 @@ class BatchProcessingView(BaseView):
                         break
 
         # Update UI state
-        self.stop_btn.configure(state="disabled")
+        self.start_stop_btn.configure(state="disabled")
 
     def _process_queue(self):
         """Process files from the queue with concurrent batch processing."""
@@ -1067,10 +1061,13 @@ class BatchProcessingView(BaseView):
         self.active_processes.clear()
 
         # Update UI buttons
-        self.start_btn.configure(state="normal")
-        self.stop_btn.configure(state="disabled")
-        self.add_files_btn.configure(state="normal")
-        self.remove_files_btn.configure(state="normal")
+        self.start_stop_btn.configure(
+            state="normal",
+            text="Start",
+            command=self._start_processing,
+            fg_color="transparent",
+            text_color=("black", "white")
+        )
 
         # Check if there are any failed files
         failed_files = [f for f in self.file_queue if f["status"] == "failed"]
