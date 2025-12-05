@@ -8,6 +8,7 @@ import logging
 import os
 import queue
 import subprocess
+import sys
 import threading
 import time
 import tkinter as tk
@@ -191,12 +192,12 @@ class GenericBatchView(BaseView, ABC):
         self._create_custom_widgets(left_frame)
 
         # --- Right Column: File List ---
-        right_frame = ctk.CTkFrame(content_frame, fg_color="transparent", border_width=0)
-        right_frame.grid(row=0, column=1, sticky="nsew")
+        self.right_frame = ctk.CTkFrame(content_frame, fg_color="transparent", border_width=0)
+        self.right_frame.grid(row=0, column=1, sticky="nsew")
 
         # Scrollable list
         self.files_list_frame = ctk.CTkScrollableFrame(
-            right_frame,
+            self.right_frame,
             fg_color="transparent"
         )
         self.files_list_frame.pack(fill="both", expand=True, padx=5, pady=5)
@@ -497,30 +498,41 @@ class GenericBatchView(BaseView, ABC):
         """Setup drag and drop support for the file list frame."""
         if self._drag_drop_setup:
             return  # Already set up
-        
-        try:
-            # Register drop target on parent window (app)
-            if hasattr(self.app, "drop_target_register"):
-                self.app.drop_target_register(DND_FILES)
 
-                def drop_handler(event):
-                    # Only process drops if this view is the current active view
-                    if not hasattr(self.app, "current_view") or self.app.current_view != self:
-                        logger.debug(f"Drop event ignored - not the active view")
-                        return "copy"
-                    
-                    logger.info("Drop event triggered!")
-                    try:
-                        self._on_drop(event)
-                    except Exception as e:
-                        logger.error(f"Error in drop handler: {e}", exc_info=True)
+        try:
+            def drop_handler(event):
+                # Only process drops if this view is the current active view
+                if not hasattr(self.app, "current_view") or self.app.current_view != self:
+                    logger.debug(f"Drop event ignored - not the active view")
                     return "copy"
 
-                self._drop_handler = drop_handler
+                logger.info("Drop event triggered!")
+                try:
+                    self._on_drop(event)
+                except Exception as e:
+                    logger.error(f"Error in drop handler: {e}", exc_info=True)
+                return "copy"
+
+            self._drop_handler = drop_handler
+
+            # Platform-specific registration:
+            # - Windows: register on the widget (more reliable)
+            # - macOS/Linux: register on root window (works better)
+            if sys.platform == "win32":
+                # Windows: register on the specific widget
+                drop_widget = self.right_frame.tk
+                drop_widget.drop_target_register(DND_FILES)
+                drop_widget.dnd_bind("<<Drop>>", drop_handler)
+                logger.info("Drag and drop enabled on file list widget (Windows)")
+            else:
+                # macOS/Linux: register on root window
+                if hasattr(self.app, "drop_target_register"):
+                    self.app.drop_target_register(DND_FILES)
                 if hasattr(self.app, "dnd_bind"):
                     self.app.dnd_bind("<<Drop>>", drop_handler)
-                    self._drag_drop_setup = True
-                    logger.info("Drag and drop enabled on root window")
+                logger.info("Drag and drop enabled on root window (macOS/Linux)")
+
+            self._drag_drop_setup = True
 
         except Exception as e:
             logger.error(f"Failed to setup drag and drop: {e}", exc_info=True)
@@ -1049,7 +1061,7 @@ class GenericBatchView(BaseView, ABC):
         """Clean up resources when the view is being removed."""
         # Remove drag and drop handlers
         self._teardown_drag_drop()
-        
+
         # Stop any ongoing processing
         if self.is_processing:
             self._stop_processing()
