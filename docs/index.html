@@ -65,14 +65,30 @@
     <section class="screenshot-section">
       <div class="container">
         <div class="screenshot-wrapper">
-          <img
-            src="deface-screenshot.png"
-            alt="Sightline Application Screenshot"
-            class="screenshot"
-          />
-          <div class="screenshot-caption">
-            Intuitive interface for blurring, smudging, and transcribing media.
+          <div class="carousel-slide fade">
+            <img
+              src="sightline_screenshot_home.png"
+              alt="Sightline Home View"
+              class="screenshot"
+            />
           </div>
+          <div class="carousel-slide fade">
+            <img
+              src="sightline_screenshot_batch.png"
+              alt="Sightline Batch Processing"
+              class="screenshot"
+            />
+          </div>
+          <div class="carousel-slide fade">
+            <img
+              src="sightline_screenshot_smudge.png"
+              alt="Sightline Manual Redaction"
+              class="screenshot"
+            />
+          </div>
+
+          <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
+          <a class="next" onclick="plusSlides(1)">&#10095;</a>
         </div>
       </div>
     </section>
@@ -267,5 +283,45 @@
         </p>
       </div>
     </footer>
+
+    <script>
+      let slideIndex = 1;
+      let slideTimer;
+
+      showSlides(slideIndex);
+
+      // Start auto loop
+      startSlideShow();
+
+      function plusSlides(n) {
+        // Reset timer on manual interaction
+        clearTimeout(slideTimer);
+        showSlides(slideIndex += n);
+        startSlideShow();
+      }
+
+      function currentSlide(n) {
+        clearTimeout(slideTimer);
+        showSlides(slideIndex = n);
+        startSlideShow();
+      }
+
+      function showSlides(n) {
+        let i;
+        let slides = document.getElementsByClassName("carousel-slide");
+        if (n > slides.length) {slideIndex = 1}
+        if (n < 1) {slideIndex = slides.length}
+        for (i = 0; i < slides.length; i++) {
+          slides[i].style.display = "none";
+        }
+        slides[slideIndex-1].style.display = "block";
+      }
+
+      function startSlideShow() {
+        slideTimer = setTimeout(function() {
+          plusSlides(1);
+        }, 5000); // Change image every 5 seconds
+      }
+    </script>
   </body>
 </html>

@@ -239,6 +239,20 @@ nav {
 .screenshot-wrapper {
   text-align: center;
   perspective: 1000px;
+  position: relative;
+  max-width: 1040px; /* Match container width */
+  margin: auto;
+}
+
+/* Carousel Styles */
+.carousel-slide {
+  display: none;
+  animation: fadeEffect 1s; /* Add animation */
+}
+
+/* Make sure the first slide is visible initially if JS fails or before JS runs (optional, but handled by JS) */
+.carousel-slide:first-child {
+  display: block;
 }
 
 .screenshot {
@@ -250,12 +264,64 @@ nav {
   min-height: 400px;
   display: block;
   margin: 0 auto;
-  transform: rotateX(2deg);
+  transform: rotateX(2deg); /* Keep the slight 3D effect */
   transition: transform 0.5s ease;
 }
 
 .screenshot:hover {
   transform: rotateX(0deg) scale(1.02);
+}
+
+/* Carousel Navigation Arrows */
+.prev,
+.next {
+  cursor: pointer;
+  position: absolute;
+  top: 50%;
+  width: auto;
+  padding: 16px;
+  margin-top: -22px;
+  color: white;
+  font-weight: bold;
+  font-size: 24px;
+  transition: 0.6s ease;
+  border-radius: 0 3px 3px 0;
+  user-select: none;
+  background-color: rgba(0, 0, 0, 0.3); /* Subtle background */
+  text-decoration: none;
+  z-index: 10;
+  opacity: 0; /* Hidden by default, show on hover of container */
+}
+
+.next {
+  right: 0;
+  border-radius: 3px 0 0 3px;
+}
+
+.prev {
+  left: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.screenshot-wrapper:hover .prev,
+.screenshot-wrapper:hover .next {
+  opacity: 1; /* Show arrows on hover */
+}
+
+.prev:hover,
+.next:hover {
+  background-color: rgba(0, 166, 255, 0.6); /* Brand accent color */
+  box-shadow: 0 0 15px rgba(0, 166, 255, 0.5);
+}
+
+/* Fade animation */
+@keyframes fadeEffect {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .screenshot-caption {
