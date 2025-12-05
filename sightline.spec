@@ -35,22 +35,10 @@ lightning_metadata = copy_metadata("lightning")
 lightning_fabric_datas = collect_data_files("lightning_fabric")
 lightning_fabric_metadata = copy_metadata("lightning_fabric")
 
-# Explicitly check for version.info which is often missed
-# spec = importlib.util.find_spec("lightning_fabric")
-# if spec and spec.origin:
-#     pkg_path = Path(spec.origin).parent
-#     version_file = pkg_path / "version.info"
-#     if version_file.exists():
-#         found = False
-#         for src, dest in lightning_fabric_datas:
-#             if os.path.abspath(src) == os.path.abspath(str(version_file)):
-#                 found = True
-#                 break
-
-#         if not found:
-#             print(f"Explicitly adding lightning_fabric/version.info: {version_file}")
-#             # Target _internal/lightning_fabric since PyInstaller 6 puts packages there
-#             lightning_fabric_datas.append((str(version_file), "_internal/lightning_fabric"))
+# Collect data for transformers (dependency of whisperx)
+# This helps ensure transformers is properly bundled
+transformers_datas = collect_data_files("transformers")
+transformers_metadata = copy_metadata("transformers")
 
 # Collect Tcl/Tk library files for tkinter
 tcl_tk_datas = []
@@ -94,7 +82,7 @@ a = Analysis(
     [entry_script, cli_entry_script],
     pathex=[],
     binaries=[],
-    datas=extra_datas + deface_datas + lightning_datas + lightning_metadata + lightning_fabric_datas + lightning_fabric_metadata + icon_files + theme_files + flaticons_files + tcl_tk_datas,
+    datas=extra_datas + deface_datas + lightning_datas + lightning_metadata + lightning_fabric_datas + lightning_fabric_metadata + transformers_datas + transformers_metadata + icon_files + theme_files + flaticons_files + tcl_tk_datas,
     hiddenimports=[
         "deface",
         "skimage._shared.geometry",
@@ -112,6 +100,8 @@ a = Analysis(
         "whisperx.align",
         "whisperx.load",
         "pyannote.audio",
+        "transformers",
+        "transformers.utils.auto_docstring",
     ],
     hookspath=[],
     hooksconfig={},
