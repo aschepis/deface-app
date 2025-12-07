@@ -1571,7 +1571,7 @@ class FaceSmudgeWindow(ctk.CTkToplevel):
                 try:
                     # Check if ffmpeg is available
                     # On Windows, use CREATE_NO_WINDOW to prevent console windows
-                    creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                    creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0 # type: ignore[attr-defined]
                     result = subprocess.run(
                         ["ffmpeg", "-version"],
                         stdout=subprocess.PIPE,
