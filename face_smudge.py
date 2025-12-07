@@ -1486,12 +1486,12 @@ class FaceSmudgeWindow(ctk.CTkToplevel):
                 # Check disk space (rough estimate)
                 estimated_size = metadata.width * metadata.height * metadata.frame_count * 3 / (1024 * 1024)  # MB
                 try:
-                    stat = os.statvfs(os.path.dirname(filename))
-                    free_space = stat.f_bavail * stat.f_frsize / (1024 * 1024)  # MB
+                    usage = shutil.disk_usage(os.path.dirname(filename))
+                    free_space = usage.free / (1024 * 1024)  # MB
                     if free_space < estimated_size * 1.5:
                         raise ValueError(f"Insufficient disk space. Estimated need: {estimated_size:.1f} MB, Available: {free_space:.1f} MB")
-                except (OSError, AttributeError):
-                    # statvfs not available on all platforms, skip check
+                except OSError:
+                    # disk_usage might fail on some platforms or permissions, skip check
                     pass
 
                 # Check write permissions
@@ -1571,7 +1571,7 @@ class FaceSmudgeWindow(ctk.CTkToplevel):
                 try:
                     # Check if ffmpeg is available
                     # On Windows, use CREATE_NO_WINDOW to prevent console windows
-                    creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0 # type: ignore[attr-defined]
+                    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
                     result = subprocess.run(
                         ["ffmpeg", "-version"],
                         stdout=subprocess.PIPE,
