@@ -8,10 +8,23 @@
   #define MyAppVersion APP_VERSION
 #endif
 
+// Extract numeric version part (strip pre-release suffixes like -rc2, -beta, etc.)
 // VersionInfoVersion requires exactly 4 numeric components (X.X.X.X)
-// Standard semantic versions are X.Y.Z (3 components), so append .0
-// This converts "1.0.0" to "1.0.0.0" for Windows version info
-#define MyAppVersionInfoVersion MyAppVersion + ".0"
+// We need to extract just the numeric part (e.g., "1.0.0" from "1.0.0-rc2")
+// and convert it to "1.0.0.0" format
+// Handle both versions with and without pre-release suffixes
+#define DashPos Pos("-", MyAppVersion)
+#if DashPos > 0
+  // Version has a dash, extract substring before it
+  #define MyNumericVersion Copy(MyAppVersion, 1, DashPos - 1)
+#else
+  // No dash, use full version
+  #define MyNumericVersion MyAppVersion
+#endif
+
+// Convert 3-component version (X.Y.Z) to 4-component (X.Y.Z.0) for VersionInfoVersion
+// This handles both regular versions (1.0.0 -> 1.0.0.0) and pre-release versions (1.0.0-rc2 -> 1.0.0.0)
+#define MyAppVersionInfoVersion MyNumericVersion + ".0"
 
 [Setup]
 AppName=Sightline
@@ -30,6 +43,7 @@ LicenseFile=LICENSE
 InfoBeforeFile=
 InfoAfterFile=
 VersionInfoVersion={#MyAppVersionInfoVersion}
+VersionInfoTextVersion={#MyAppVersion}
 VersionInfoCompany=Sightline App Contributors
 VersionInfoDescription=Powerful tools for face blurring, manual redaction, and audio transcription in a single application.
 VersionInfoCopyright=Copyright (C) 2025
