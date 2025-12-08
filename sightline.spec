@@ -119,8 +119,8 @@ app_name = "Sightline"
 bundle_id = "com.sightlineapp.sightline"
 entry_script = "main.py"
 cli_entry_script = "deface_cli_entry.py"
-# Use .icns for macOS, .png for other platforms
-icon_file = "icon.icns" if sys.platform == "darwin" else "icon.png"
+# Use .icns for macOS, .ico for Windows, .png for Linux
+icon_file = "icon.icns" if sys.platform == "darwin" else ("icon.ico" if sys.platform == "win32" else "icon.png")
 
 block_cipher = None
 
@@ -315,6 +315,7 @@ gui_exe = EXE(
     strip=False,
     upx=False,
     console=False,  # GUI mode
+    icon=icon_file if sys.platform in ("win32", "darwin") else None,  # Embed icon for Windows and macOS
 )
 
 # Standalone CLI executable that runs the deface library from the bundled
