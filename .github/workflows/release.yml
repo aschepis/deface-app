@@ -262,26 +262,32 @@ jobs:
           echo "=== Before cleanup ==="
           du -sh dist/Sightline
           echo ""
+          echo "Finding large files..."
+          find dist/Sightline -type f -size +50M -exec ls -lh {} \; | head -10
+          echo ""
           echo "Removing unnecessary CUDA components and large files..."
           # Remove triton (CUDA compiler, ~337MB+ and not needed at runtime)
-          rm -rf dist/Sightline/_internal/triton 2>/dev/null || true
-          # Remove CUDA static libraries (large .a files, not needed)
-          find dist/Sightline -type f -name "*.a" -size +10M -delete
-          # Remove CUDA development tools (ptxas, etc. - not needed at runtime)
-          find dist/Sightline -path "*/triton/backends/nvidia/bin/*" -delete 2>/dev/null || true
-          # Remove large CUDA static libraries specifically
-          find dist/Sightline -path "*/triton/backends/nvidia/lib/cupti/*.a" -delete 2>/dev/null || true
+          if [ -d "dist/Sightline/_internal/triton" ]; then
+            echo "Removing triton directory..."
+            rm -rf dist/Sightline/_internal/triton
+            echo "  Removed triton"
+          fi
+          # Remove CUDA static libraries (large .a files, not needed at runtime)
+          echo "Removing large static libraries (.a files >10MB)..."
+          find dist/Sightline -type f -name "*.a" -size +10M -delete -print | wc -l | xargs -I {} echo "  Removed {} .a files"
           # Remove large model files (runtime-downloaded, not needed in bundle)
+          echo "Removing large model files..."
           find dist/Sightline -type f \( \
             -name "*.bin" -o \
             -name "*.safetensors" -o \
             -name "*.pt" -o \
             -name "*.pth" -o \
             -name "*.ckpt" \
-          \) -size +10M -delete
+          \) -size +10M -delete -print | wc -l | xargs -I {} echo "  Removed {} model files"
           # Remove large ONNX files (keep small ones like deface's centerface.onnx)
-          find dist/Sightline -type f -name "*.onnx" -size +10M -delete
+          find dist/Sightline -type f -name "*.onnx" -size +10M -delete -print | wc -l | xargs -I {} echo "  Removed {} ONNX files"
           # Remove cache directories
+          echo "Removing cache directories..."
           find dist/Sightline -type d \( \
             -name "__pycache__" -o \
             -name ".cache" -o \
@@ -291,12 +297,23 @@ jobs:
             -name "transformers_cache" -o \
             -name ".huggingface" \
           \) -exec rm -rf {} + 2>/dev/null || true
+          echo "  Removed cache directories"
+          # Remove CUDA libraries for CPU-only build (saves ~1GB)
+          # Note: This makes the build CPU-only. Remove this section if GPU support is needed.
+          if [ -f "dist/Sightline/_internal/torch/lib/libtorch_cuda.so" ]; then
+            echo "Removing CUDA libraries for CPU-only build..."
+            rm -f dist/Sightline/_internal/torch/lib/libtorch_cuda.so
+            rm -f dist/Sightline/_internal/torch/lib/libc10_cuda.so
+            find dist/Sightline/_internal/torch/lib -name "*cuda*" -type f -delete
+            find dist/Sightline/_internal/nvidia -type f -delete 2>/dev/null || true
+            echo "  Removed CUDA libraries (build is now CPU-only)"
+          fi
           echo ""
           echo "=== After cleanup ==="
           du -sh dist/Sightline
           echo ""
-          echo "Top 20 largest remaining files..."
-          find dist/Sightline -type f -exec ls -lh {} \; | sort -k5 -hr | head -20
+          echo "Top 10 largest remaining files..."
+          find dist/Sightline -type f -exec ls -lh {} \; 2>/dev/null | sort -k5 -hr | head -10
 
       - name: Create tarball
         env:
