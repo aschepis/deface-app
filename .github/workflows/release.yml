@@ -256,21 +256,21 @@ jobs:
         run: |
           conda run -n sightline-build python -m PyInstaller sightline.spec --clean --noconfirm
 
-      - name: Remove large files and CUDA libraries
+      - name: Remove large files and unnecessary CUDA components
         shell: bash -el {0}
         run: |
           echo "=== Before cleanup ==="
           du -sh dist/Sightline
           echo ""
-          echo "Removing CUDA libraries and large files..."
-          # Remove CUDA-specific PyTorch libraries (app will use CPU-only)
-          find dist/Sightline -type f -name "*cuda*.so" -delete
-          find dist/Sightline -type f -name "*cuda*.a" -delete
-          # Remove triton (CUDA compiler, very large)
+          echo "Removing unnecessary CUDA components and large files..."
+          # Remove triton (CUDA compiler, ~337MB+ and not needed at runtime)
           rm -rf dist/Sightline/_internal/triton 2>/dev/null || true
-          # Remove CUDA binaries and tools
-          find dist/Sightline -path "*/triton/*" -delete 2>/dev/null || true
-          find dist/Sightline -path "*/nvidia/*" -delete 2>/dev/null || true
+          # Remove CUDA static libraries (large .a files, not needed)
+          find dist/Sightline -type f -name "*.a" -size +10M -delete
+          # Remove CUDA development tools (ptxas, etc. - not needed at runtime)
+          find dist/Sightline -path "*/triton/backends/nvidia/bin/*" -delete 2>/dev/null || true
+          # Remove large CUDA static libraries specifically
+          find dist/Sightline -path "*/triton/backends/nvidia/lib/cupti/*.a" -delete 2>/dev/null || true
           # Remove large model files (runtime-downloaded, not needed in bundle)
           find dist/Sightline -type f \( \
             -name "*.bin" -o \
