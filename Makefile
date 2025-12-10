@@ -15,7 +15,7 @@ CONDA_RUN := conda run -n $(CONDA_ENV)
 ### TARGETS ###################################################################
 
 .PHONY: help conda-env conda-remove install install-dev build build-windows build-macos sign \
-        notarize create-dmg dist-macos dist clean shell test lint format check run \
+        notarize create-dmg create-windows-installer dist-macos dist clean shell test lint format check run \
         check-deps
 
 help:
@@ -34,6 +34,7 @@ help:
 	@echo "  make sign            Sign the .app (use SIGNING_IDENTITY=<id> for real signing)"
 	@echo "  make notarize        Notarize the signed .app (requires APPLE_ID, APPLE_TEAM_ID)"
 	@echo "  make create-dmg      Create DMG from signed .app (use VERSION=x.x.x)"
+	@echo "  make create-windows-installer Create Windows installer (use VERSION=x.x.x)"
 	@echo "  make dist-macos      Build, sign, notarize, and create DMG (full release)"
 	@echo "  make dist            Create distributable .zip"
 	@echo "  make shell           Enter the conda env shell"
@@ -257,6 +258,9 @@ create-dmg:
 		-ov -format UDZO \
 		"dist-packages/$(APP)-$${VERSION}-macOS.dmg"
 	@echo "✓ DMG created: dist-packages/$(APP)-$${VERSION}-macOS.dmg"
+
+create-windows-installer:
+	@powershell.exe -ExecutionPolicy Bypass -File scripts/create-windows-installer.ps1 -Version "$(VERSION)" -AppName "$(APP)"
 
 dist-macos: build-macos sign notarize create-dmg
 	@echo "✓ Complete macOS distribution package created!"

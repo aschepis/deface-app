@@ -188,20 +188,11 @@ jobs:
           choco install innosetup -y
 
       - name: Create Windows installer
-        shell: pwsh
+        shell: bash -el {0}
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          # Pass version to Inno Setup via /D parameter (more reliable than environment variables)
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAPP_VERSION="$env:VERSION" build_win_installer.iss
-
-      - name: Rename installer
-        shell: bash
-        env:
-          VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          mkdir -p dist-packages
-          mv Output/SightlineInstaller.exe "dist-packages/Sightline-${VERSION}-Windows-Setup.exe"
+          make create-windows-installer VERSION="$VERSION"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
