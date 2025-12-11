@@ -234,6 +234,15 @@ jobs:
         with:
           platforms: ${{ matrix.qemu_platform }}
 
+      - name: Set up QEMU user emulation
+        if: matrix.arch == 'aarch64'
+        run: |
+          # Install qemu-user-static to enable running ARM64 binaries
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-user-static binfmt-support
+          # Register binfmt for ARM64
+          sudo update-binfmts --enable qemu-aarch64 || true
+
       - name: Set version
         id: version
         run: |
@@ -266,14 +275,9 @@ jobs:
               apt-get install -y -qq wget bzip2 && \
               wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-aarch64.sh -O /tmp/miniconda.sh && \
               bash /tmp/miniconda.sh -b -p /host-home/miniconda-arm64 && \
-              rm /tmp/miniconda.sh
+              rm /tmp/miniconda.sh && \
+              /host-home/miniconda-arm64/bin/conda create -n sightline-build python=3.12 -y
             "
-
-          # Add conda to PATH for this step
-          export PATH="$HOME/miniconda-arm64/bin:$PATH"
-
-          # Create the build environment (conda init not needed, we use conda directly)
-          $HOME/miniconda-arm64/bin/conda create -n sightline-build python=3.12 -y
 
           echo "CONDA_PREFIX=$HOME/miniconda-arm64" >> $GITHUB_ENV
           echo "$HOME/miniconda-arm64/bin" >> $GITHUB_PATH
@@ -282,11 +286,11 @@ jobs:
         shell: bash -el {0}
         run: |
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            source $HOME/miniconda-arm64/bin/activate
-            conda activate sightline-build
-            pip install --upgrade pip
-            pip install -r requirements.txt
-            pip install pyinstaller
+            # Use conda run to execute commands in the ARM64 environment via QEMU/binfmt
+            # The ARM64 conda binary should be executable via QEMU if binfmt is set up
+            $HOME/miniconda-arm64/bin/conda run -n sightline-build pip install --upgrade pip
+            $HOME/miniconda-arm64/bin/conda run -n sightline-build pip install -r requirements.txt
+            $HOME/miniconda-arm64/bin/conda run -n sightline-build pip install pyinstaller
           else
             conda run -n sightline-build pip install --upgrade pip
             conda run -n sightline-build pip install -r requirements.txt
@@ -299,9 +303,8 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            source $HOME/miniconda-arm64/bin/activate
-            conda activate sightline-build
-            python -m PyInstaller sightline.spec --clean --noconfirm
+            # Use conda run to execute PyInstaller in the ARM64 environment via QEMU
+            $HOME/miniconda-arm64/bin/conda run -n sightline-build python -m PyInstaller sightline.spec --clean --noconfirm
           else
             conda run -n sightline-build python -m PyInstaller sightline.spec --clean --noconfirm
           fi
