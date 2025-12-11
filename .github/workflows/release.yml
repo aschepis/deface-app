@@ -205,7 +205,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [x86_64, aarch64]
+        # arch: [x86_64, aarch64]
+        arch: [x86_64]
         include:
           - arch: x86_64
             arch_name: x86_64
