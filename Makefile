@@ -111,8 +111,6 @@ build: build-macos
 
 build-windows:
 	$(CONDA_RUN) python -m PyInstaller $(SPEC)
-	@echo "→ Post-processing: Creating Tcl/Tk lib directory symlinks..."
-	$(CONDA_RUN) python -c "import shutil, os; src_tcl='dist/Sightline/_internal/_tcl_data'; src_tk='dist/Sightline/_internal/_tk_data'; dst_lib='dist/Sightline/lib'; os.makedirs(dst_lib, exist_ok=True); dst_tcl=os.path.join(dst_lib,'tcl8.6'); dst_tk=os.path.join(dst_lib,'tk8.6'); shutil.rmtree(dst_tcl, ignore_errors=True); shutil.rmtree(dst_tk, ignore_errors=True); shutil.copytree(src_tcl, dst_tcl) if os.path.isdir(src_tcl) else None; shutil.copytree(src_tk, dst_tk) if os.path.isdir(src_tk) else None; print('  Created lib/tcl8.6 and lib/tk8.6')"
 	@echo "Build complete! Output is in dist/Sightline/"
 
 build-macos:
@@ -134,12 +132,21 @@ build-macos:
 		mv $(DIST_APP)/Contents/Resources/tk $(DIST_APP)/Contents/lib/tk8.6; \
 		echo "  ✓ Moved Tk library to Contents/lib/tk8.6"; \
 	fi
+	@echo "→ Post-processing: Removing invalid symlinks..."
+	@if [ -L "$(DIST_APP)/Contents/Frameworks/tk" ]; then \
+		rm -f $(DIST_APP)/Contents/Frameworks/tk; \
+		echo "  ✓ Removed invalid tk symlink from Frameworks"; \
+	fi
+	@if [ -L "$(DIST_APP)/Contents/Frameworks/tcl" ]; then \
+		rm -f $(DIST_APP)/Contents/Frameworks/tcl; \
+		echo "  ✓ Removed invalid tcl symlink from Frameworks"; \
+	fi
 	@echo "✓ Post-processing complete!"
 
 ### SIGNING ###################################################################
 
 sign:
-	@scripts/sign-app.sh $(DIST_APP) $(SIGNING_IDENTITY) $(APP)
+	@scripts/sign-app.sh "$(DIST_APP)" "$(SIGNING_IDENTITY)" "$(APP)"
 
 notarize:
 	@echo "→ Notarizing $(DIST_APP)..."

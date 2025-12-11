@@ -207,42 +207,92 @@ if sys.platform == 'darwin':
         print(f"✗ Tk library not found at: {tk_lib}")
 elif sys.platform == 'win32':
     # Find Tcl/Tk libraries from Python prefix (Windows/Conda)
-    # Conda on Windows puts Tcl/Tk in Library/lib or tcl subdirectories
-    tcl_candidates = [
-        Path(sys.prefix) / 'Library' / 'lib' / 'tcl8.6',
-        Path(sys.prefix) / 'tcl' / 'tcl8.6',
-        Path(sys.prefix) / 'lib' / 'tcl8.6',
-        Path(sys.base_prefix) / 'Library' / 'lib' / 'tcl8.6',
-        Path(sys.base_prefix) / 'tcl' / 'tcl8.6',
-    ]
-    tk_candidates = [
-        Path(sys.prefix) / 'Library' / 'lib' / 'tk8.6',
-        Path(sys.prefix) / 'tcl' / 'tk8.6',
-        Path(sys.prefix) / 'lib' / 'tk8.6',
-        Path(sys.base_prefix) / 'Library' / 'lib' / 'tk8.6',
-        Path(sys.base_prefix) / 'tcl' / 'tk8.6',
-    ]
-
+    # First, try to use tkinter to find the paths programmatically
     tcl_lib = None
-    for candidate in tcl_candidates:
-        if candidate.exists() and (candidate / 'init.tcl').exists():
-            tcl_lib = candidate
-            break
-
     tk_lib = None
-    for candidate in tk_candidates:
-        if candidate.exists() and (candidate / 'tk.tcl').exists():
-            tk_lib = candidate
-            break
+    
+    try:
+        import tkinter
+        # Try to get Tcl/Tk paths from tkinter
+        # This may create a window briefly, but it's the most reliable way
+        root = tkinter.Tk()
+        root.withdraw()  # Hide the window
+        tcl_lib_path = root.tk.eval('info library')
+        tk_lib_path = root.tk.eval('set tk_library')
+        root.destroy()
+        
+        if tcl_lib_path:
+            tcl_lib = Path(tcl_lib_path)
+            if tcl_lib.exists() and (tcl_lib / 'init.tcl').exists():
+                print(f"✓ Found Tcl library via tkinter at: {tcl_lib}")
+            else:
+                tcl_lib = None
+        
+        if tk_lib_path:
+            tk_lib = Path(tk_lib_path)
+            if tk_lib.exists() and (tk_lib / 'tk.tcl').exists():
+                print(f"✓ Found Tk library via tkinter at: {tk_lib}")
+            else:
+                tk_lib = None
+    except Exception as e:
+        print(f"Note: Could not use tkinter to find Tcl/Tk paths: {e}")
+    
+    # If tkinter method didn't work, try candidate paths relative to Python installation
+    if not tcl_lib or not tk_lib:
+        tcl_candidates = [
+            Path(sys.prefix) / 'Library' / 'lib' / 'tcl8.6',
+            Path(sys.prefix) / 'tcl' / 'tcl8.6',
+            Path(sys.prefix) / 'lib' / 'tcl8.6',
+            Path(sys.base_prefix) / 'Library' / 'lib' / 'tcl8.6',
+            Path(sys.base_prefix) / 'tcl' / 'tcl8.6',
+            Path(sys.base_prefix) / 'lib' / 'tcl8.6',
+        ]
+        tk_candidates = [
+            Path(sys.prefix) / 'Library' / 'lib' / 'tk8.6',
+            Path(sys.prefix) / 'tcl' / 'tk8.6',
+            Path(sys.prefix) / 'lib' / 'tk8.6',
+            Path(sys.base_prefix) / 'Library' / 'lib' / 'tk8.6',
+            Path(sys.base_prefix) / 'tcl' / 'tk8.6',
+            Path(sys.base_prefix) / 'lib' / 'tk8.6',
+        ]
+        
+        # Try to find Python installation from sys.executable if available
+        if hasattr(sys, 'executable') and sys.executable:
+            python_exe = Path(sys.executable)
+            if python_exe.exists():
+                # Check parent directories of Python executable
+                for parent in [python_exe.parent, python_exe.parent.parent]:
+                    tcl_candidates.extend([
+                        parent / 'tcl' / 'tcl8.6',
+                        parent / 'lib' / 'tcl8.6',
+                        parent / 'Library' / 'lib' / 'tcl8.6',
+                    ])
+                    tk_candidates.extend([
+                        parent / 'tcl' / 'tk8.6',
+                        parent / 'lib' / 'tk8.6',
+                        parent / 'Library' / 'lib' / 'tk8.6',
+                    ])
+
+        if not tcl_lib:
+            for candidate in tcl_candidates:
+                if candidate.exists() and (candidate / 'init.tcl').exists():
+                    tcl_lib = candidate
+                    break
+
+        if not tk_lib:
+            for candidate in tk_candidates:
+                if candidate.exists() and (candidate / 'tk.tcl').exists():
+                    tk_lib = candidate
+                    break
 
     if tcl_lib:
-        tcl_tk_datas.append((str(tcl_lib), '_tcl_data'))
+        tcl_tk_datas.append((str(tcl_lib), 'lib/tcl8.6'))
         print(f"✓ Found Tcl library at: {tcl_lib}")
     else:
         print(f"✗ Tcl library not found in any candidate location")
 
     if tk_lib:
-        tcl_tk_datas.append((str(tk_lib), '_tk_data'))
+        tcl_tk_datas.append((str(tk_lib), 'lib/tk8.6'))
         print(f"✓ Found Tk library at: {tk_lib}")
     else:
         print(f"✗ Tk library not found in any candidate location")
@@ -266,11 +316,16 @@ if flaticons_dir.exists():
     if license_file.exists():
         flaticons_files.append((str(license_file), "flaticons/license"))
 
+# Collect customtkinter data files (themes, assets, etc.)
+# This is needed for the default "blue" theme fallback
+customtkinter_datas = collect_data_files("customtkinter")
+print(f"✓ Collected {len(customtkinter_datas)} customtkinter data files")
+
 a = Analysis(
     [entry_script, cli_entry_script],
     pathex=[],
     binaries=[],
-    datas=extra_datas + deface_datas + lightning_datas + lightning_metadata + lightning_fabric_datas + lightning_fabric_metadata + transformers_datas + transformers_metadata + whisperx_datas + speechbrain_datas + speechbrain_metadata + icon_files + theme_files + flaticons_files + tcl_tk_datas,
+    datas=extra_datas + deface_datas + lightning_datas + lightning_metadata + lightning_fabric_datas + lightning_fabric_metadata + transformers_datas + transformers_metadata + whisperx_datas + speechbrain_datas + speechbrain_metadata + icon_files + theme_files + flaticons_files + customtkinter_datas + tcl_tk_datas,
     hiddenimports=[
         "deface",
         "skimage._shared.geometry",
@@ -295,7 +350,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['pyi_rth_tkinter.py', 'pyi_rth_transformers.py', 'pyi_rth_tqdm.py'],
-    excludes=['speechbrain', 'matplotlib'],
+    excludes=['speechbrain'],
     noarchive=False,
 )
 
@@ -370,30 +425,73 @@ app = BUNDLE(
     },
 )
 
-# Create symlink for speechbrain in Frameworks directory
+# Create symlink for speechbrain in Frameworks directory (if needed)
 # speechbrain's find_imports looks in Frameworks/, but PyInstaller puts it in Resources/
+# Remove invalid symlinks that may be created by PyInstaller or other processes
 if sys.platform == 'darwin':
-    import subprocess
-    frameworks_path = Path(f"dist/{app_name}.app/Contents/Frameworks")
+    app_bundle_path = Path(f"dist/{app_name}.app")
+    frameworks_path = app_bundle_path / "Contents" / "Frameworks"
+    resources_path = app_bundle_path / "Contents" / "Resources"
+
     if frameworks_path.exists():
-        symlink_cmd = f"cd {frameworks_path} && ln -sf ../Resources/speechbrain speechbrain"
-        subprocess.run(symlink_cmd, shell=True, check=True)
-        print(f"✓ Created speechbrain symlink in Frameworks directory")
+        # Remove invalid symlinks in Frameworks (tk and tcl - these shouldn't exist)
+        # Remove ALL tk/tcl symlinks regardless of whether they're broken, as they shouldn't be in Frameworks
+        for invalid_name in ["tk", "tcl"]:
+            invalid_path = frameworks_path / invalid_name
+            if invalid_path.exists():
+                if invalid_path.is_symlink():
+                    invalid_path.unlink()
+                    print(f"✓ Removed symlink: {invalid_path}")
+                elif invalid_path.is_dir():
+                    # If it's a directory, it might be a leftover - but be careful not to remove actual needed dirs
+                    # Only remove if it's empty or clearly not needed
+                    try:
+                        if not any(invalid_path.iterdir()):
+                            invalid_path.rmdir()
+                            print(f"✓ Removed empty directory: {invalid_path}")
+                    except Exception:
+                        pass
 
-        # Handle whisperx assets
-        whisperx_fw_path = frameworks_path / "whisperx"
-        whisperx_res_path = Path(f"dist/{app_name}.app/Contents/Resources/whisperx")
+        # Only create speechbrain symlink if speechbrain exists in Resources
+        if resources_path.exists():
+            speechbrain_src = resources_path / "speechbrain"
+            speechbrain_dst = frameworks_path / "speechbrain"
+            if speechbrain_src.exists() and speechbrain_src.is_dir():
+                # Remove existing symlink if present
+                if speechbrain_dst.exists() and speechbrain_dst.is_symlink():
+                    speechbrain_dst.unlink()
+                # Create symlink only if destination doesn't already exist as a directory
+                if not speechbrain_dst.exists():
+                    # Use relative path from Frameworks to Resources/speechbrain
+                    speechbrain_dst.symlink_to("../Resources/speechbrain")
+                    print(f"✓ Created speechbrain symlink in Frameworks directory")
 
-        if whisperx_fw_path.exists():
-            # whisperx is in Frameworks, symlink assets folder if it exists in Resources
-            print(f"✓ whisperx found in Frameworks")
-            if (whisperx_res_path / "assets").exists():
-                 symlink_cmd = f"cd {whisperx_fw_path} && ln -sf ../../../Resources/whisperx/assets assets"
-                 subprocess.run(symlink_cmd, shell=True, check=True)
-                 print(f"✓ Created whisperx assets symlink in Frameworks directory")
-        else:
-            # whisperx not in Frameworks, symlink the whole package
-            print(f"ℹ whisperx not in Frameworks, symlinking package")
-            symlink_cmd = f"cd {frameworks_path} && ln -sf ../Resources/whisperx whisperx"
-            subprocess.run(symlink_cmd, shell=True, check=True)
-            print(f"✓ Created whisperx symlink in Frameworks directory")
+    # Remove invalid self-referential symlink in speechbrain (if created by PyInstaller)
+    if resources_path.exists():
+        speechbrain_self_link = resources_path / "speechbrain" / "speechbrain"
+        if speechbrain_self_link.exists() and speechbrain_self_link.is_symlink():
+            try:
+                target = speechbrain_self_link.readlink()
+                # Check if it's self-referential
+                if str(target) == "." or str(target) == "speechbrain" or "speechbrain" in str(target):
+                    speechbrain_self_link.unlink()
+                    print(f"✓ Removed self-referential symlink: {speechbrain_self_link}")
+            except Exception:
+                speechbrain_self_link.unlink()
+                print(f"✓ Removed broken symlink: {speechbrain_self_link}")
+
+# Windows: Copy Tcl/Tk lib folder to top level for native Tcl discovery
+# Tcl looks for lib/tcl8.6 relative to the executable, but PyInstaller puts
+# data files in _internal/. Copy them to both locations to ensure they're found.
+if sys.platform == 'win32':
+    import shutil
+    dist_path = Path(f"dist/{app_name}")
+    internal_lib = dist_path / "_internal" / "lib"
+    top_lib = dist_path / "lib"
+    
+    if internal_lib.exists():
+        # Copy lib folder from _internal to top level
+        if top_lib.exists():
+            shutil.rmtree(top_lib)
+        shutil.copytree(internal_lib, top_lib)
+        print(f"✓ Copied Tcl/Tk lib folder to {top_lib}")

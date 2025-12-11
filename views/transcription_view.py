@@ -125,8 +125,6 @@ class TranscriptionView(GenericBatchView):
 
     def _check_models_status(self):
         """Check if models/token are configured and update UI."""
-        from config_manager import get_models_path
-
         token = ""
         if hasattr(self.app, 'full_config'):
             token = self.app.full_config.get("hugging_face_token", "")
@@ -135,17 +133,34 @@ class TranscriptionView(GenericBatchView):
             self.model_alert_label.configure(text="⚠️ Token missing", text_color="orange")
             return
 
-        # Check if models exist on disk
+        # Check if models exist in Hugging Face cache
+        from config_manager import get_models_path
         models_path = get_models_path()
-        from views.dialogs.manage_models_dialog import REQUIRED_MODELS
+        logger.info(f"Models path: {models_path}")
 
+        hub_dir = models_path / "hub"
+
+        from views.dialogs.manage_models_dialog import REQUIRED_MODELS
+        logger.info(f"Required models: {REQUIRED_MODELS}")
         models_exist = True
-        for model_id in REQUIRED_MODELS:
-            model_name = model_id.replace("/", "--")
-            model_dir = models_path / model_name
-            if not model_dir.exists() or not any(model_dir.iterdir()):
-                models_exist = False
-                break
+        if hub_dir.exists():
+            for model_id in REQUIRED_MODELS:
+                # Hugging Face stores models as: models--org--model-name--<hash>/
+                model_prefix = f"models--{model_id.replace('/', '--')}"
+
+                # Search for directories matching the prefix
+                found = False
+                for item in hub_dir.iterdir():
+                    if item.is_dir() and item.name.startswith(model_prefix):
+                        if any(item.iterdir()):
+                            found = True
+                            break
+
+                if not found:
+                    models_exist = False
+                    break
+        else:
+            models_exist = False
 
         if models_exist:
             self.model_alert_label.configure(text="✅ Ready", text_color="green")
@@ -195,6 +210,7 @@ class TranscriptionView(GenericBatchView):
             file_info["progress"] = 0.1
             self.output_queue.put(("file_update", file_path))
             logger.info("Loading WhisperX model...")
+            logger.info("NOTE: This may take several minutes the first time as the model needs to be downloaded from Hugging Face (several GB). Please be patient...")
 
             # Load WhisperX model
             import torch
@@ -208,8 +224,43 @@ class TranscriptionView(GenericBatchView):
 
             device = "cuda" if torch.cuda.is_available() else "cpu"
             compute_type = "float16" if device == "cuda" else "float32"
+            logger.info(f"Using device: {device}, compute_type: {compute_type}")
 
-            model = whisperx.load_model("base", device, compute_type=compute_type)
+            # Log Hugging Face cache location for debugging
+            from config_manager import get_models_path
+            models_path = get_models_path()
+            logger.info(f"Hugging Face cachesse location: {models_path}")
+
+            # Check if cache directory exists and log some info
+            if os.path.exists(models_path):
+                cache_size = sum(f.stat().st_size for f in Path(models_path).rglob('*') if f.is_file())
+                cache_size_mb = cache_size / (1024 * 1024)
+                logger.info(f"Cache directory exists, approximate size: {cache_size_mb:.1f} MB")
+            else:
+                logger.info("Cache directory does not exist - model will be downloaded on first use")
+
+            # Check hub directory before download to monitor progress
+            hub_dir = Path(models_path) / "hub"
+            if hub_dir.exists():
+                initial_size = sum(f.stat().st_size for f in hub_dir.rglob('*') if f.is_file())
+                logger.info(f"Initial hub cache size: {initial_size / (1024*1024):.2f} MB")
+            else:
+                logger.info("Hub cache directory does not exist yet - will be created during download")
+
+            logger.info("Starting WhisperX model load (this may take 1-5 minutes on CPU, especially first time)...")
+            logger.info(f"Monitor download progress by checking: {hub_dir}")
+
+            start_time = time.time()
+            try:
+                from huggingface_hub import login
+                login(token=token)
+                model = whisperx.load_model("base", device, compute_type=compute_type, vad_method="silero")
+                elapsed_time = time.time() - start_time
+                logger.info(f"WhisperX model loaded successfully in {elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)")
+            except Exception as e:
+                elapsed_time = time.time() - start_time
+                logger.error(f"Error loading WhisperX model after {elapsed_time:.2f} seconds: {e}", exc_info=True)
+                raise
 
             # Update progress: Loading audio (20%)
             file_info["progress"] = 0.2
@@ -246,14 +297,15 @@ class TranscriptionView(GenericBatchView):
             self.output_queue.put(("file_update", file_path))
             logger.info("Performing speaker diarization...")
 
-            # Diarize
-            from config_manager import get_models_path
-            from whisperx.diarize import DiarizationPipeline
 
+            # Get models path
+            from config_manager import get_models_path
             models_path = get_models_path()
 
+            # Diarize
+            from whisperx.diarize import DiarizationPipeline
             diarize_model = DiarizationPipeline(
-                use_auth_token=token,
+                # use_auth_token=token,
                 device=device,
             )
             diarize_segments = diarize_model(audio)
