@@ -139,7 +139,7 @@ build-macos:
 ### SIGNING ###################################################################
 
 sign:
-	@scripts/sign-app.sh $(DIST_APP) $(SIGNING_IDENTITY) $(APP)
+	@scripts/sign-app.sh "$(DIST_APP)" "$(SIGNING_IDENTITY)" "$(APP)"
 
 notarize:
 	@echo "→ Notarizing $(DIST_APP)..."
