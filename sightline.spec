@@ -266,11 +266,16 @@ if flaticons_dir.exists():
     if license_file.exists():
         flaticons_files.append((str(license_file), "flaticons/license"))
 
+# Collect customtkinter data files (themes, assets, etc.)
+# This is needed for the default "blue" theme fallback
+customtkinter_datas = collect_data_files("customtkinter")
+print(f"✓ Collected {len(customtkinter_datas)} customtkinter data files")
+
 a = Analysis(
     [entry_script, cli_entry_script],
     pathex=[],
     binaries=[],
-    datas=extra_datas + deface_datas + lightning_datas + lightning_metadata + lightning_fabric_datas + lightning_fabric_metadata + transformers_datas + transformers_metadata + whisperx_datas + speechbrain_datas + speechbrain_metadata + icon_files + theme_files + flaticons_files + tcl_tk_datas,
+    datas=extra_datas + deface_datas + lightning_datas + lightning_metadata + lightning_fabric_datas + lightning_fabric_metadata + transformers_datas + transformers_metadata + whisperx_datas + speechbrain_datas + speechbrain_metadata + icon_files + theme_files + flaticons_files + customtkinter_datas + tcl_tk_datas,
     hiddenimports=[
         "deface",
         "skimage._shared.geometry",
