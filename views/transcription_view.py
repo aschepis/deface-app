@@ -254,8 +254,7 @@ class TranscriptionView(GenericBatchView):
             try:
                 from huggingface_hub import login
                 login(token=token)
-                model = whisperx.load_model("base", device, compute_type=compute_type)
-                logger.info("Model loaded with explicit token parameter")
+                model = whisperx.load_model("base", device, compute_type=compute_type, vad_method="silero")
                 elapsed_time = time.time() - start_time
                 logger.info(f"WhisperX model loaded successfully in {elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes)")
             except Exception as e:
