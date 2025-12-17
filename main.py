@@ -10,8 +10,8 @@ from pathlib import Path
 
 # Set HuggingFace cache location early, before any HF-related imports
 # This ensures all HF libraries (whisperx, pyannote, transformers) use the user's cache
-if not os.environ.get('HF_HOME'):
-    os.environ['HF_HOME'] = str(Path.home() / ".cache" / "huggingface")
+if not os.environ.get("HF_HOME"):
+    os.environ["HF_HOME"] = str(Path.home() / ".cache" / "huggingface")
 
 # CRITICAL: Patch tqdm and transformers BEFORE any imports
 # These fixes address compatibility issues with PyInstaller and frozen applications
