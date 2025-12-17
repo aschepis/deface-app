@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # torch.hub (used by WhisperX's Silero VAD) calls sys.stdout.write(...) while downloading,
 # which crashes if stdout is None.
 class _NullWriter:
-    def write(self, _: str) -> int:  # type: ignore[override]
+    def write(self, _: str) -> int:
         return 0
 
     def flush(self) -> None:
@@ -44,9 +44,9 @@ def _ensure_stdio():
     old_stdout, old_stderr = sys.stdout, sys.stderr
     try:
         if sys.stdout is None:
-            sys.stdout = sys.__stdout__ or _NullWriter()  # type: ignore[assignment]
+            sys.stdout = sys.__stdout__ or _NullWriter()
         if sys.stderr is None:
-            sys.stderr = sys.__stderr__ or _NullWriter()  # type: ignore[assignment]
+            sys.stderr = sys.__stderr__ or _NullWriter()
         yield
     finally:
         sys.stdout, sys.stderr = old_stdout, old_stderr
