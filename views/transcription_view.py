@@ -25,6 +25,97 @@ from views.dialogs import ManageModelsDialog
 
 logger = logging.getLogger(__name__)
 
+
+def _setup_ffmpeg_path():
+    """Set up ffmpeg path for whisperx.load_audio().
+
+    imageio_ffmpeg bundles ffmpeg with platform-specific names (e.g.,
+    ffmpeg-macos-aarch64-v7.1). This function monkey-patches subprocess to
+    intercept "ffmpeg" calls and replace them with the full path to the
+    bundled ffmpeg. This avoids creating symlinks in the app bundle which
+    could break code signing.
+
+    Returns True if ffmpeg was found and patched, False otherwise.
+    """
+    try:
+        import imageio_ffmpeg
+        import subprocess
+        import shutil
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if ffmpeg_exe and os.path.isfile(ffmpeg_exe):
+            # Get absolute path for verification
+            ffmpeg_exe_abs = os.path.abspath(ffmpeg_exe)
+            
+            # Check for system ffmpeg to verify we're using the bundled one
+            system_ffmpeg = shutil.which('ffmpeg')
+            if system_ffmpeg:
+                system_ffmpeg_abs = os.path.abspath(system_ffmpeg)
+                if system_ffmpeg_abs != ffmpeg_exe_abs:
+                    logger.info(f"Using bundled ffmpeg: {ffmpeg_exe_abs}")
+                    logger.info(f"System ffmpeg (will be overridden): {system_ffmpeg_abs}")
+                else:
+                    logger.info(f"Using ffmpeg: {ffmpeg_exe_abs} (same as system)")
+            else:
+                logger.info(f"Using bundled ffmpeg: {ffmpeg_exe_abs}")
+            
+            # Store original subprocess functions
+            if not hasattr(subprocess, '_original_run'):
+                subprocess._original_run = subprocess.run
+                subprocess._original_Popen = subprocess.Popen
+                subprocess._patched_ffmpeg_path = ffmpeg_exe_abs
+
+            # Monkey-patch subprocess.run
+            def patched_run(*args, **kwargs):
+                if args and len(args) > 0:
+                    cmd = args[0]
+                    # Handle list/tuple commands
+                    if isinstance(cmd, (list, tuple)) and len(cmd) > 0:
+                        cmd = list(cmd)
+                        # Replace "ffmpeg" with full path if found
+                        if cmd[0] == 'ffmpeg' or (isinstance(cmd[0], str) and os.path.basename(cmd[0]) == 'ffmpeg'):
+                            original_cmd = cmd[0]
+                            cmd[0] = ffmpeg_exe_abs
+                            logger.debug(f"Intercepted ffmpeg call: '{original_cmd}' -> '{ffmpeg_exe_abs}'")
+                            args = (cmd,) + args[1:]
+                    # Handle string commands (shell=True)
+                    elif isinstance(cmd, str) and cmd.strip().startswith('ffmpeg '):
+                        original_cmd = cmd[:50] + '...' if len(cmd) > 50 else cmd
+                        cmd = cmd.replace('ffmpeg ', f'{ffmpeg_exe_abs} ', 1)
+                        logger.debug(f"Intercepted ffmpeg call: '{original_cmd}' -> '{cmd[:50]}...'")
+                        args = (cmd,) + args[1:]
+                return subprocess._original_run(*args, **kwargs)
+
+            # Monkey-patch subprocess.Popen
+            def patched_Popen(*args, **kwargs):
+                if args and len(args) > 0:
+                    cmd = args[0]
+                    # Handle list/tuple commands
+                    if isinstance(cmd, (list, tuple)) and len(cmd) > 0:
+                        cmd = list(cmd)
+                        # Replace "ffmpeg" with full path if found
+                        if cmd[0] == 'ffmpeg' or (isinstance(cmd[0], str) and os.path.basename(cmd[0]) == 'ffmpeg'):
+                            original_cmd = cmd[0]
+                            cmd[0] = ffmpeg_exe_abs
+                            logger.debug(f"Intercepted ffmpeg Popen call: '{original_cmd}' -> '{ffmpeg_exe_abs}'")
+                            args = (cmd,) + args[1:]
+                    # Handle string commands (shell=True)
+                    elif isinstance(cmd, str) and cmd.strip().startswith('ffmpeg '):
+                        original_cmd = cmd[:50] + '...' if len(cmd) > 50 else cmd
+                        cmd = cmd.replace('ffmpeg ', f'{ffmpeg_exe_abs} ', 1)
+                        logger.debug(f"Intercepted ffmpeg Popen call: '{original_cmd}' -> '{cmd[:50]}...'")
+                        args = (cmd,) + args[1:]
+                return subprocess._original_Popen(*args, **kwargs)
+
+            subprocess.run = patched_run
+            subprocess.Popen = patched_Popen
+
+            logger.info(f"Patched subprocess to use bundled ffmpeg: {ffmpeg_exe_abs}")
+            return True
+    except (ImportError, AttributeError, Exception) as e:
+        logger.warning(f"Could not set up imageio_ffmpeg: {e}")
+
+    return False
+
 # Some Windows + PyInstaller "windowed" builds set sys.stdout/sys.stderr to None.
 # torch.hub (used by WhisperX's Silero VAD) calls sys.stdout.write(...) while downloading,
 # which crashes if stdout is None.
@@ -301,6 +392,9 @@ class TranscriptionView(GenericBatchView):
             file_info["progress"] = 0.2
             self.output_queue.put(("file_update", file_path))
             logger.info("Loading audio file...")
+
+            # Set up ffmpeg path before loading audio
+            _setup_ffmpeg_path()
 
             # Load audio
             audio = whisperx.load_audio(file_path)
